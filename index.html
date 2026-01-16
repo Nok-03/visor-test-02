@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>V.I.S.O.R. 行車助理系統 MK-III</title>
+    <title>V.I.S.O.R. 行車助理系統 MK-IV</title>
     
     <!-- 1. 核心樣式庫: Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,35 +27,32 @@
 
     <!-- 6. 自定義樣式與動畫 -->
     <style>
-        /* 隱藏滾動條但保留功能 */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 頁面切換淡入動畫 */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
         
-        /* SOS 警示燈動畫 */
         @keyframes sosPulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
             50% { box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0); }
         }
         .animate-sos { animation: sosPulse 1.5s infinite; }
 
-        /* HUD 像素字體模擬 */
+        @keyframes flashRed {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.5); }
+            50% { background-color: rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 1); }
+        }
+        .animate-alert { animation: flashRed 0.8s infinite; }
+
         .font-pixel {
             font-family: 'Courier New', Courier, monospace;
             letter-spacing: 1px;
         }
 
-        /* 移除原本的 map-filter 濾鏡樣式
-           讓 Google Maps 呈現原始色彩，提升辨識度 
-        */
-
-        /* iOS Safe Area Support */
         .safe-top { padding-top: env(safe-area-inset-top); }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
     </style>
@@ -66,67 +63,74 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
-        
-        // --- 初始化 Recharts ---
         const Recharts = window.Recharts || null;
         const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } = Recharts || {};
 
-        // --- 元件: Lucide Icon 封裝 ---
         const toPascalCase = (str) => str.replace(/(^\w|-\w)/g, (text) => text.replace(/-/, '').toUpperCase());
 
         const Icon = ({ name, size = 24, className = "" }) => {
             const containerRef = useRef(null);
-
             useEffect(() => {
                 if (!window.lucide || !containerRef.current) return;
                 const iconName = toPascalCase(name);
                 const iconNode = window.lucide.icons[iconName];
-
                 if (!iconNode) return;
-
                 const svgElement = window.lucide.createElement(iconNode);
                 svgElement.setAttribute('width', size);
                 svgElement.setAttribute('height', size);
                 if (className) svgElement.setAttribute('class', className);
-
                 containerRef.current.innerHTML = '';
                 containerRef.current.appendChild(svgElement);
             }, [name, size, className]);
-
             return <span ref={containerRef} style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}></span>;
         };
 
-        // --- 元件: SOS 長按按鈕 ---
+        // --- 測速照相資料庫 (範例資料: 包含台北101周邊與部分新北熱點) ---
+        // 資料來源參考: data.gov.tw (此處為模擬轉換後的結構)
+        const SPEED_CAMERA_DB = [
+            { id: 1, limit: 50, lat: 25.0335, lng: 121.5650, address: "信義路五段 (台北101前)" },
+            { id: 2, limit: 60, lat: 25.0410, lng: 121.5600, address: "忠孝東路/基隆路口" },
+            { id: 3, limit: 40, lat: 25.0290, lng: 121.5680, address: "松仁路" },
+            { id: 4, limit: 80, lat: 25.0380, lng: 121.5500, address: "市民大道高架" },
+            // 為了測試方便，這個點設置在非常靠近預設位置的地方
+            { id: 99, limit: 30, lat: 25.0345, lng: 121.5648, address: "測試用：虛擬照相機" } 
+        ];
+
+        // 計算兩點距離 (Haversine Formula) - 回傳單位: 公里
+        const calculateDistance = (lat1, lon1, lat2, lon2) => {
+            const R = 6371; // 地球半徑 (km)
+            const dLat = (lat2 - lat1) * (Math.PI / 180);
+            const dLon = (lon2 - lon1) * (Math.PI / 180);
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; 
+        };
+
         const SOSButton = () => {
             const [activating, setActivating] = useState(false);
             const [countdown, setCountdown] = useState(3);
-            
             useEffect(() => {
                 let timer;
                 if (activating && countdown > 0) {
                     timer = setTimeout(() => setCountdown(c => c - 1), 1000);
                 } else if (countdown === 0) {
-                    // 模擬觸發
                     alert("⚠️ SOS 信號已發送！\n位置座標已上傳至緊急聯絡人。");
                     setActivating(false);
                     setCountdown(3);
                 }
                 return () => clearTimeout(timer);
             }, [activating, countdown]);
-
             const start = () => setActivating(true);
             const stop = () => { setActivating(false); setCountdown(3); };
-
             return (
                 <button 
                     onMouseDown={start} onMouseUp={stop} onMouseLeave={stop}
                     onTouchStart={start} onTouchEnd={stop}
                     className={`relative overflow-hidden p-4 rounded-xl border transition-all duration-200 flex flex-col items-center justify-center gap-2 active:scale-95 select-none ${activating ? 'bg-red-900/60 border-red-500 animate-sos' : 'bg-gradient-to-br from-red-900/20 to-red-900/10 border-red-500/30'}`}
                 >
-                    {/* 進度條背景 */}
-                    {activating && (
-                        <div className="absolute inset-0 bg-red-600/20 z-0" style={{width: `${(3-countdown)/3 * 100}%`, transition: 'width 1s linear'}}></div>
-                    )}
+                    {activating && <div className="absolute inset-0 bg-red-600/20 z-0" style={{width: `${(3-countdown)/3 * 100}%`, transition: 'width 1s linear'}}></div>}
                     <Icon name="phone-call" size={32} className={`relative z-10 ${activating ? 'text-white' : 'text-red-500'}`} />
                     <span className={`relative z-10 font-bold ${activating ? 'text-white' : 'text-red-200'}`}>
                         {activating ? `釋放以取消 (${countdown})` : '長按 E-SOS 求救'}
@@ -135,56 +139,54 @@
             );
         };
 
-        // --- 元件: HUD 預覽視窗 ---
-        const HUDPreview = ({ options }) => {
+        const HUDPreview = ({ options, alertInfo }) => {
             const isEnabled = (id) => options.find(o => o.id === id)?.enabled;
+            
+            // 如果有測速警示，覆蓋導航資訊
+            const showAlert = alertInfo && alertInfo.distance < 0.3; // 300公尺內顯示紅色警示
 
             return (
-                <div className="w-full bg-black border-4 border-slate-700 rounded-lg p-2 relative mb-6 shadow-[0_0_15px_rgba(34,211,238,0.2)]">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-slate-800 text-[10px] px-2 rounded-b text-slate-400 font-mono tracking-wider">HUD PREVIEW (128x64)</div>
+                <div className={`w-full bg-black border-4 rounded-lg p-2 relative mb-6 transition-all duration-300 ${showAlert ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'border-slate-700 shadow-[0_0_15px_rgba(34,211,238,0.2)]'}`}>
+                    <div className={`absolute top-0 left-1/2 -translate-x-1/2 text-[10px] px-2 rounded-b font-mono tracking-wider transition-colors ${showAlert ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                        {showAlert ? '⚠️ SPEED LIMIT ALERT' : 'HUD PREVIEW'}
+                    </div>
                     
                     <div className="aspect-[2/1] w-full bg-black relative overflow-hidden font-pixel flex flex-col justify-between p-4">
-                        {/* 頂部資訊列 */}
                         <div className="flex justify-between items-start border-b border-white/30 pb-1 mb-1">
                             <span className="text-cyan-400 text-xs font-bold tracking-widest animate-pulse">V.I.S.O.R.</span>
                             {isEnabled('time') && <span className="text-white text-xs">10:42 AM</span>}
                         </div>
 
-                        {/* 中間主要內容 */}
                         <div className="flex-1 flex items-center justify-between gap-2">
-                            {/* 左側: 速度與導航 */}
                             <div className="flex flex-col items-start justify-center">
                                 {isEnabled('speed') && (
                                     <div className="text-white">
-                                        <span className="text-4xl font-bold leading-none text-cyan-50 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]">58</span>
+                                        <span className={`text-4xl font-bold leading-none ${showAlert ? 'text-red-500' : 'text-cyan-50'}`}>58</span>
                                         <span className="text-[10px] ml-1 text-slate-400">km/h</span>
                                     </div>
                                 )}
-                                {isEnabled('nav') && (
-                                    <div className="flex items-center gap-1 mt-1 text-yellow-400 animate-pulse">
-                                        <Icon name="arrow-up-right" size={16} />
-                                        <span className="text-xs">200m R-TURN</span>
+                                {showAlert ? (
+                                    <div className="flex items-center gap-1 mt-1 text-red-500 animate-pulse font-bold">
+                                        <div className="border-2 border-red-500 rounded-full w-8 h-8 flex items-center justify-center text-sm">{alertInfo.limit}</div>
+                                        <span className="text-xs">{Math.round(alertInfo.distance * 1000)}m</span>
                                     </div>
+                                ) : (
+                                    isEnabled('nav') && (
+                                        <div className="flex items-center gap-1 mt-1 text-yellow-400 animate-pulse">
+                                            <Icon name="arrow-up-right" size={16} />
+                                            <span className="text-xs">200m R-TURN</span>
+                                        </div>
+                                    )
                                 )}
                             </div>
 
-                            {/* 右側: 通知與警示 */}
                             <div className="flex flex-col items-end gap-1">
                                 {isEnabled('camera') && (
-                                    <div className="bg-red-900/50 text-red-400 px-1 border border-red-500/50 text-[10px] flex items-center gap-1">
-                                        <Icon name="camera" size={10} /><span>SPEED CAM</span>
+                                    <div className={`px-1 border text-[10px] flex items-center gap-1 ${showAlert ? 'bg-red-600 text-white border-red-400' : 'bg-red-900/50 text-red-400 border-red-500/50'}`}>
+                                        <Icon name="camera" size={10} /><span>{showAlert ? 'CAM AHEAD' : 'CAM ON'}</span>
                                     </div>
                                 )}
-                                {isEnabled('calls') && (
-                                    <div className="text-green-400 text-[10px] flex items-center gap-1 border border-green-500/30 px-1 rounded">
-                                        <Icon name="phone" size={10} /><span>Mom</span>
-                                    </div>
-                                )}
-                                {isEnabled('music') && (
-                                    <div className="text-blue-300 text-[10px] flex items-center gap-1 max-w-[80px] truncate">
-                                        <Icon name="music" size={10} /><span className="truncate">Cyberpunk...</span>
-                                    </div>
-                                )}
+                                {isEnabled('calls') && <div className="text-green-400 text-[10px] flex items-center gap-1 border border-green-500/30 px-1 rounded"><Icon name="phone" size={10} /><span>Mom</span></div>}
                             </div>
                         </div>
                         <div className="w-full h-[1px] bg-white/20 mt-1"></div>
@@ -193,39 +195,29 @@
             );
         };
 
-        // --- 元件: 底部導航按鈕 ---
         const NavButton = ({ iconName, label, isActive, onClick, isCenter = false }) => (
-            <button 
-                onClick={onClick}
-                className="flex flex-col items-center justify-center gap-1.5 transition-all duration-300 p-2 w-16"
-            >
+            <button onClick={onClick} className="flex flex-col items-center justify-center gap-1.5 transition-all duration-300 p-2 w-16">
                 <div className={`transition-all duration-300 ${isActive ? (isCenter ? 'scale-110' : '-translate-y-1') : ''} ${isCenter ? 'bg-cyan-900/80 p-2 rounded-full border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : ''}`}>
                     <Icon name={iconName} size={24} className={isCenter ? 'text-cyan-400' : (isActive ? 'text-cyan-400' : 'text-slate-500')} strokeWidth={isActive || isCenter ? 2.5 : 2} />
                 </div>
-                <span className={`text-[10px] font-medium transition-all duration-300 ${isActive || isCenter ? 'text-cyan-400 opacity-100' : 'text-slate-500 opacity-70'} ${isCenter ? 'font-bold' : ''}`}>
-                    {label}
-                </span>
+                <span className={`text-[10px] font-medium transition-all duration-300 ${isActive || isCenter ? 'text-cyan-400 opacity-100' : 'text-slate-500 opacity-70'} ${isCenter ? 'font-bold' : ''}`}>{label}</span>
             </button>
         );
 
-        // --- 主程式: App ---
         const App = () => {
-            // 狀態管理
             const [activeTab, setActiveTab] = useState('home');
             const [isSentryMode, setIsSentryMode] = useState(false);
             const [simulatedSpeed, setSimulatedSpeed] = useState(0);
-            const [simulatedTilt, setSimulatedTilt] = useState(0);
             const [isConnected, setIsConnected] = useState(false); 
             const [isDemoMode, setIsDemoMode] = useState(true);
-
-            // 定位狀態: 預設台北 101
-            const [location, setLocation] = useState({ lat: 25.033964, lng: 121.564468 });
+            const [location, setLocation] = useState({ lat: 25.033964, lng: 121.564468 }); // 預設台北 101
             const [isLocating, setIsLocating] = useState(false);
+            
+            // 測速照相相關狀態
+            const [nearestCamera, setNearestCamera] = useState(null);
 
-            // WebSocket Reference
             const ws = useRef(null);
 
-            // 模擬數據: HUD 設定
             const [hudOptions, setHudOptions] = useState([
                 { id: 'speed', label: '顯示即時時速', enabled: true },
                 { id: 'nav', label: '顯示導航箭頭', enabled: true },
@@ -235,22 +227,44 @@
                 { id: 'music', label: '顯示音樂資訊', enabled: false },
             ]);
 
-            // 模擬數據: 圖表資料
-            const [rideData, setRideData] = useState([
+            const rideData = [
                 { time: '10:00', speed: 20, gForce: 0.1 }, { time: '10:05', speed: 45, gForce: 0.3 },
                 { time: '10:10', speed: 60, gForce: 0.5 }, { time: '10:15', speed: 55, gForce: 0.4 },
                 { time: '10:20', speed: 30, gForce: 0.8 }, { time: '10:25', speed: 0, gForce: 0.1 },
                 { time: '10:30', speed: 40, gForce: 0.2 },
-            ]);
+            ];
 
-            // 模擬數據: 事件列表
             const eventData = [
                 { id: 1, type: 'danger', title: '後方逼車警示', time: '10:14 AM', loc: '市民大道四段', duration: '0:15' },
                 { id: 2, type: 'warning', title: '異常傾角偵測', time: '10:08 AM', loc: '建國高架', duration: '0:10' },
                 { id: 3, type: 'info', title: '哨兵模式：移動偵測', time: '昨天 18:30', loc: '住家停車場', duration: '0:30' },
             ];
 
-            // WebSocket 連線邏輯
+            // 檢查最近的測速照相
+            useEffect(() => {
+                if (!location) return;
+
+                let minDistance = Infinity;
+                let closest = null;
+
+                SPEED_CAMERA_DB.forEach(cam => {
+                    const dist = calculateDistance(location.lat, location.lng, cam.lat, cam.lng);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closest = { ...cam, distance: dist }; // distance in km
+                    }
+                });
+
+                // 如果距離小於 1km，就視為「相關」
+                if (closest && closest.distance < 1.0) {
+                    setNearestCamera(closest);
+                } else {
+                    setNearestCamera(null);
+                }
+
+            }, [location]);
+
+            // WebSocket
             useEffect(() => {
                 const connectWebSocket = () => {
                     try {
@@ -259,7 +273,6 @@
                         ws.current.onmessage = (event) => {
                             const data = JSON.parse(event.data);
                             if (data.speed) setSimulatedSpeed(data.speed);
-                            if (data.tilt) setSimulatedTilt(data.tilt);
                         };
                         ws.current.onclose = () => { setIsConnected(false); setIsDemoMode(true); };
                         ws.current.onerror = (err) => {};
@@ -271,58 +284,38 @@
                 return () => { if (ws.current) ws.current.close(); };
             }, []);
 
-            // 模擬數據循環 (僅在 Demo 模式下運行)
+            // Demo loop
             useEffect(() => {
                 if (!isDemoMode) return;
                 const interval = setInterval(() => {
                     setSimulatedSpeed(Math.floor(Math.random() * (65 - 35 + 1) + 35));
-                    setSimulatedTilt(Math.floor(Math.random() * (15 - (-5) + 1) + -5));
                 }, 800);
                 setIsConnected(true);
                 return () => clearInterval(interval);
             }, [isDemoMode]);
 
-            // 獲取定位 (更新版: 詳細錯誤處理)
+            // 獲取定位
             const handleLocate = (isManual = false) => {
-                // 檢查瀏覽器是否支援
                 if (!navigator.geolocation) {
                     if (isManual) alert("您的裝置或瀏覽器不支援地理定位功能。");
                     return;
                 }
                 
                 setIsLocating(true);
-                
-                // 設定定位選項
-                const options = {
-                    enableHighAccuracy: true,
-                    timeout: 10000, // 增加超時時間到 10 秒
-                    maximumAge: 0
-                };
+                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
                 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         console.log("定位成功:", position.coords);
-                        setLocation({
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                        });
+                        setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
                         setIsLocating(false);
                     },
                     (error) => {
                         console.warn(`定位失敗 (${error.code}): ${error.message}`);
-                        
-                        let errorMsg = "無法獲取目前位置。";
-                        if (error.code === 1) errorMsg = "定位權限被拒絕。請檢查瀏覽器設定。";
-                        else if (error.code === 2) errorMsg = "無法偵測到位置資訊。";
-                        else if (error.code === 3) errorMsg = "定位請求逾時。";
-
-                        // 判斷是否為不安全的 Context (非 HTTPS)
-                        if (window.isSecureContext === false) {
-                            errorMsg += "\n\n注意：瀏覽器通常要求在 HTTPS 安全連線下才能使用定位功能。";
-                        }
-
                         if (isManual) {
-                            alert(`${errorMsg}\n\n已切換至預設位置。`);
+                            let msg = "無法獲取位置，使用預設座標。";
+                            if(window.isSecureContext === false) msg += "\n(請使用 HTTPS)";
+                            alert(msg);
                         }
                         setIsLocating(false);
                     },
@@ -340,8 +333,6 @@
                 }
             };
 
-            // --- 視圖渲染函式 ---
-
             const renderHome = () => (
                 <div className="space-y-6 animate-fadeIn pb-24">
                     {/* 系統狀態卡片 */}
@@ -349,7 +340,6 @@
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity duration-500 group-hover:rotate-12 transform">
                             <Icon name="shield" size={120} className="text-cyan-400" />
                         </div>
-                        
                         <div className="flex justify-between items-start mb-4 relative z-10">
                             <div>
                                 <h2 className="text-slate-400 text-sm font-medium">系統狀態</h2>
@@ -364,80 +354,106 @@
                                 <span className="font-mono">85%</span>
                             </div>
                         </div>
-
                         <div className="grid grid-cols-2 gap-4 mt-6 relative z-10">
                             <div className="text-center p-3 bg-slate-900/50 rounded-xl backdrop-blur-sm border border-slate-700/50">
                                 <div className="text-slate-400 text-[10px] uppercase tracking-wider mb-1">Speed</div>
                                 <div className="text-4xl font-black text-cyan-400 font-mono tracking-tighter drop-shadow-md">{simulatedSpeed}</div>
                                 <div className="text-slate-500 text-xs">km/h</div>
                             </div>
-                            <div className="text-center p-3 bg-slate-900/50 rounded-xl backdrop-blur-sm border border-slate-700/50">
-                                <div className="text-slate-400 text-[10px] uppercase tracking-wider mb-1">Tilt Angle</div>
-                                <div className="text-4xl font-black text-purple-400 font-mono tracking-tighter drop-shadow-md">{simulatedTilt}°</div>
-                                <div className="text-slate-500 text-xs">Left / Right</div>
-                            </div>
+                            
+                            {/* 右側資訊欄：如果有測速照相，顯示限速資訊；否則顯示一般資訊 */}
+                            {nearestCamera ? (
+                                <div className={`text-center p-3 rounded-xl backdrop-blur-sm border relative overflow-hidden flex flex-col justify-center items-center transition-all duration-300 ${nearestCamera.distance < 0.3 ? 'bg-red-900/40 border-red-500 animate-alert' : 'bg-yellow-900/30 border-yellow-500/50'}`}>
+                                    <div className={`text-[10px] uppercase tracking-wider mb-1 font-bold ${nearestCamera.distance < 0.3 ? 'text-red-200' : 'text-yellow-200'}`}>
+                                        前方測速 ({Math.round(nearestCamera.distance * 1000)}m)
+                                    </div>
+                                    <div className="relative">
+                                        <div className="w-12 h-12 rounded-full border-4 border-red-500 bg-white flex items-center justify-center shadow-lg">
+                                            <span className="text-black font-bold text-xl font-sans">{nearestCamera.limit}</span>
+                                        </div>
+                                    </div>
+                                    <div className={`text-[9px] mt-1 truncate max-w-full ${nearestCamera.distance < 0.3 ? 'text-red-200' : 'text-yellow-200'}`}>{nearestCamera.address}</div>
+                                </div>
+                            ) : (
+                                <div className="text-center p-3 bg-slate-900/50 rounded-xl backdrop-blur-sm border border-slate-700/50 flex flex-col justify-center items-center">
+                                    <div className="text-slate-400 text-[10px] uppercase tracking-wider mb-1">Safety</div>
+                                    <Icon name="check-circle" size={32} className="text-green-500 mb-1" />
+                                    <div className="text-slate-500 text-xs">無測速警示</div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* 快捷操作區 */}
                     <div className="grid grid-cols-2 gap-4">
                         <button 
                             onClick={() => setIsSentryMode(!isSentryMode)}
                             className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-300 border active:scale-95 ${isSentryMode ? 'bg-cyan-900/30 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.15)]' : 'bg-slate-800 border-slate-700 hover:bg-slate-750'}`}
                         >
                             <Icon name="eye" size={32} className={isSentryMode ? 'text-cyan-400' : 'text-slate-400'} />
-                            <span className={`font-medium ${isSentryMode ? 'text-cyan-100' : 'text-slate-400'}`}>
-                                {isSentryMode ? '哨兵：開啟' : '哨兵：關閉'}
-                            </span>
+                            <span className={`font-medium ${isSentryMode ? 'text-cyan-100' : 'text-slate-400'}`}>{isSentryMode ? '哨兵：開啟' : '哨兵：關閉'}</span>
                         </button>
                         <SOSButton />
                     </div>
 
-                    {/* Google Map 嵌入卡片 */}
                     <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 overflow-hidden relative">
                         <div className="flex justify-between items-center mb-3 relative z-10">
                             <h3 className="text-white font-bold text-sm flex items-center gap-2">
                                 <Icon name="map" size={16} className="text-blue-400"/> 即時位置
                             </h3>
-                            <button 
-                                onClick={() => handleLocate(true)} 
-                                className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded border transition-all ${isLocating ? 'bg-cyan-600 border-cyan-400 text-white animate-pulse' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}
-                            >
-                                <Icon name="crosshair" size={12} />
-                                {isLocating ? '定位中...' : '重新定位'}
-                            </button>
+                            <div className="flex gap-2">
+                                {/* 外部連結: 台北市 CCTV 列表 */}
+                                <a 
+                                    href="https://www.dokoportal.com/cctvs/taipei-city" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] flex items-center gap-1 px-2 py-1 rounded border bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 transition-colors"
+                                >
+                                    <Icon name="video" size={12} />
+                                    路況
+                                </a>
+                                <button 
+                                    onClick={() => handleLocate(true)} 
+                                    className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded border transition-all ${isLocating ? 'bg-cyan-600 border-cyan-400 text-white animate-pulse' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}
+                                >
+                                    <Icon name="crosshair" size={12} />
+                                    {isLocating ? '...' : '定位'}
+                                </button>
+                            </div>
                         </div>
                         
                         <div className="h-48 w-full bg-slate-900 rounded-lg relative overflow-hidden border border-slate-600/50">
-                            {/* Google Map Iframe 
-                                備註: 這裡使用免費的 Embed 連結。
-                                若需正式使用 (避免流量限制/功能受限)，請申請 Google Maps JavaScript API Key，
-                                並改用官方 SDK: https://developers.google.com/maps/documentation/javascript/overview
-                            */}
                             <iframe 
                                 title="Google Maps"
                                 width="100%" 
                                 height="100%" 
                                 frameBorder="0" 
                                 style={{border:0}} 
-                                // 移除 map-filter class 以還原色彩
                                 className="opacity-90 hover:opacity-100 transition-opacity"
-                                src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`}
+                                src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=16&output=embed`}
                                 allowFullScreen
                             ></iframe>
-                            <div className="absolute inset-0 pointer-events-none border-2 border-cyan-500/20 rounded-lg"></div>
-                            <div className="absolute top-2 right-2 bg-slate-900/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono text-cyan-400 border border-cyan-500/30">
+                            
+                            {/* 警示覆蓋層: 如果附近有測速，顯示紅色外框 */}
+                            {nearestCamera && nearestCamera.distance < 0.3 && (
+                                <div className="absolute inset-0 pointer-events-none border-4 border-red-500 animate-pulse rounded-lg z-20"></div>
+                            )}
+
+                            <div className="absolute top-2 right-2 bg-slate-900/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono text-cyan-400 border border-cyan-500/30 shadow-lg z-10">
                                 LAT: {location.lat.toFixed(4)}<br/>LNG: {location.lng.toFixed(4)}
                             </div>
                         </div>
+                        {/* 底部提示文字 */}
+                        {nearestCamera && (
+                            <div className={`mt-2 text-xs flex items-center justify-between p-2 rounded ${nearestCamera.distance < 0.3 ? 'bg-red-900/50 text-red-200' : 'bg-yellow-900/30 text-yellow-200'}`}>
+                                <span className="flex items-center gap-1"><Icon name="alert-triangle" size={12}/> {nearestCamera.distance < 0.3 ? "請減速！" : "注意前方"}</span>
+                                <span className="font-mono">限速 {nearestCamera.limit} / {Math.round(nearestCamera.distance*1000)}m</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
 
-            // 其他頁面保持不變 (Events, Stats, HUD, Settings)
-            // ... (省略重複程式碼以保持精簡，功能邏輯與前版相同) ...
-            
-            // 完整保留其他 render 函式
+            // ... (其他 renderEvents, renderStats 函式保留不變，省略以節省長度) ...
             const renderEvents = () => (
                 <div className="space-y-4 animate-fadeIn pb-24">
                     <h2 className="text-xl font-bold text-white mb-2">智慧事件簿</h2>
@@ -513,10 +529,11 @@
                 </div>
             );
 
+            // 更新 HUD Page: 傳入 nearestCamera 作為 alertInfo
             const renderHudPage = () => (
                 <div className="space-y-6 animate-fadeIn pb-24">
                     <h2 className="text-xl font-bold text-white">HUD 顯示配置</h2>
-                    <HUDPreview options={hudOptions} />
+                    <HUDPreview options={hudOptions} alertInfo={nearestCamera} />
                     <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
                         <div className="p-4 border-b border-slate-700">
                             <h3 className="text-cyan-400 text-sm font-bold mb-3 uppercase tracking-wider">顯示內容開關</h3>
@@ -569,7 +586,6 @@
                 </div>
             );
 
-            // --- 主渲染 ---
             return (
                 <div className="flex justify-center items-center min-h-screen bg-black font-sans p-0 md:p-4 lg:p-6 overflow-hidden">
                     <div className="w-full h-[100dvh] md:max-w-[420px] md:h-[90vh] md:max-h-[880px] bg-slate-950 md:rounded-[3rem] md:border-[8px] md:border-slate-800 overflow-hidden relative shadow-2xl flex flex-col md:ring-1 md:ring-white/10 transition-all duration-300">
