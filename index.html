@@ -113,9 +113,11 @@
             return <span ref={containerRef} style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}></span>;
         };
 
-        // --- 震動 Helper ---
+        // --- [震動標記] 震動 Helper ---
         const vibrate = (pattern) => {
+            // 檢查瀏覽器是否支援 Vibration API (主要支援 Android)
             if (navigator.vibrate) {
+                // pattern 可以是單一數字(毫秒)或陣列 [震動, 暫停, 震動, ...]
                 navigator.vibrate(pattern);
             }
         };
@@ -270,6 +272,7 @@
                     onTrigger(); 
                     setActivating(false);
                     setCountdown(3);
+                    // [震動標記] SOS 倒數結束，確認發送震動 (Pattern: 兩短兩短)
                     vibrate([200, 100, 200, 100]); 
                 }
                 return () => clearTimeout(timer);
@@ -277,6 +280,7 @@
 
             const start = () => { 
                 setActivating(true); 
+                // [震動標記] 按下 SOS 按鈕時的觸覺回饋 (Pattern: 短震動)
                 vibrate(50); 
             };
             const stop = () => { setActivating(false); setCountdown(3); };
@@ -348,6 +352,7 @@
         );
 
         const App = () => {
+            // Theme State (預設 Night Mode = true)
             const [isNightMode, setIsNightMode] = useState(true);
 
             const [activeTab, setActiveTab] = useState('home');
@@ -365,7 +370,8 @@
             const [showWifiModal, setShowWifiModal] = useState(false);
             const [showNotifModal, setShowNotifModal] = useState(false);
 
-            const [crashCountdown, setCrashCountdown] = useState(null); 
+            // Crash Detection State
+            const [crashCountdown, setCrashCountdown] = useState(null); // null means no crash
 
             const [cameraDB, setCameraDB] = useState(MOCK_SPEED_CAMERA_DB);
             const [dbStatus, setDbStatus] = useState("離線資料庫");
@@ -375,12 +381,12 @@
             const ws = useRef(null);
 
             const [hudOptions, setHudOptions] = useState([
-                { id: 'speed', label: '即時時速', enabled: true },
-                { id: 'nav', label: '導航箭頭', enabled: true },
-                { id: 'time', label: '目前時間', enabled: true },
-                { id: 'camera', label: '測速提醒', enabled: true },
-                { id: 'calls', label: '來電通知', enabled: false },
-                { id: 'music', label: '音樂資訊', enabled: false },
+                { id: 'speed', label: '顯示即時時速', enabled: true },
+                { id: 'nav', label: '顯示導航箭頭', enabled: true },
+                { id: 'time', label: '顯示目前時間', enabled: true },
+                { id: 'camera', label: '測速照相提醒', enabled: true },
+                { id: 'calls', label: '顯示來電通知', enabled: false },
+                { id: 'music', label: '顯示音樂資訊', enabled: false },
             ]);
 
             const rideData = [
@@ -396,8 +402,10 @@
                 { id: 3, type: 'info', title: '哨兵模式：移動偵測', time: '昨天 18:30', loc: '住家停車場', duration: '0:30' },
             ];
 
+            // 觸發求救邏輯
             const handleTriggerSOS = () => {
                 setCrashCountdown(null); 
+                // [震動標記] 發送成功確認震動 (Pattern: 兩短一長)
                 vibrate([200, 100, 500]); 
                 navigator.vibrate(0); 
 
@@ -423,15 +431,19 @@
                 );
             };
 
+            // 處理摔車偵測 (測試按鈕觸發)
             const simulateCrash = () => {
                 setCrashCountdown(10); 
+                // [震動標記] 摔車/撞擊偵測 初始強力脈衝震動
                 vibrate([500, 300, 500, 300, 500, 300, 500, 300, 500, 300]); 
             };
 
+            // 摔車倒數計時器
             useEffect(() => {
                 let timer;
                 if (crashCountdown !== null && crashCountdown > 0) {
                     timer = setTimeout(() => setCrashCountdown(c => c - 1), 1000);
+                    // [震動標記] 倒數計時 每秒提示震動
                     if (crashCountdown % 2 === 0) vibrate(200);
                 } else if (crashCountdown === 0) {
                     handleTriggerSOS();
@@ -439,8 +451,10 @@
                 return () => clearTimeout(timer);
             }, [crashCountdown]);
 
+            // 取消摔車警報
             const cancelCrashAlert = () => {
                 setCrashCountdown(null);
+                // [震動標記] 取消警報時停止所有震動
                 navigator.vibrate(0); 
             };
 
@@ -482,6 +496,7 @@
                 if (closest && closest.distance < 1.0) { 
                     setNearestCamera(closest);
                     if (closest.distance < 0.3 && lastAlertCameraId.current !== closest.id) {
+                        // [震動標記] 進入測速照相紅色警戒 (300m) 震動警示 (Pattern: 兩短一長)
                         vibrate([200, 100, 500]); 
                         lastAlertCameraId.current = closest.id;
                     }
@@ -549,6 +564,7 @@
                 setShowWifiModal(false);
             };
 
+            // --- Theme Control ---
             const toggleTheme = () => setIsNightMode(!isNightMode);
 
             // --- Home Page ---
