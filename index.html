@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>V.I.S.O.R. 行車助理系統 MK-VII (Layout Fix)</title>
+    <title>V.I.S.O.R. 行車助理系統 MK-VIII</title>
     
     <!-- 1. 核心樣式庫: Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -593,44 +593,58 @@
                 </div>
             );
 
-            // --- Main Layout ---
             return (
-                <div className="flex flex-col w-full h-[100dvh] bg-slate-950 overflow-hidden relative">
-                    {/* Modals */}
-                    {showWifiModal && <WifiModal onClose={() => setShowWifiModal(false)} onConnect={handleWifiConnect} currentSsid={currentSsid} />}
-                    {showNotifModal && <NotificationModal onClose={() => setShowNotifModal(false)} />}
+                <div className="flex flex-col justify-center items-center min-h-screen bg-black font-sans p-0 sm:p-4">
+                    {/* 手機外框 */}
+                    <div className="w-full max-w-md h-[100dvh] sm:h-[90vh] sm:max-h-[880px] bg-slate-950 sm:rounded-[3rem] sm:border-8 sm:border-slate-800 overflow-hidden relative shadow-2xl flex flex-col sm:ring-1 sm:ring-white/10 transition-all duration-300">
+                        
+                        {/* Modals - 放在外框內 */}
+                        {showWifiModal && <WifiModal onClose={() => setShowWifiModal(false)} onConnect={handleWifiConnect} currentSsid={currentSsid} />}
+                        {showNotifModal && <NotificationModal onClose={() => setShowNotifModal(false)} />}
 
-                    {/* Status Bar (Static Height) */}
-                    <div className="flex-none bg-slate-950 px-6 pt-4 pb-2 flex justify-between items-center z-30 select-none safe-top border-b border-slate-900">
-                        <div className="flex items-center gap-2">
-                            <Icon name="shield-check" size={20} className="text-cyan-400" />
-                            <h1 className="text-xl font-black text-white tracking-widest italic font-mono">V.I.S.O.R.</h1>
+                        {/* Status Bar (固定高度 Flex-none) */}
+                        <div className="flex-none bg-slate-950 px-6 pt-5 pb-2 flex justify-between items-center z-20 select-none">
+                            <div className="flex items-center gap-2">
+                                <Icon name="shield-check" size={18} className="text-cyan-400" />
+                                <h1 className="text-lg font-black text-white tracking-widest italic font-mono">V.I.S.O.R.</h1>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setIsHeadsetConnected(!isHeadsetConnected)}>
+                                    <Icon name="headset" size={16} className={isHeadsetConnected ? "text-blue-400" : "text-slate-600"} />
+                                </button>
+                                <button onClick={() => setShowWifiModal(true)}>
+                                    <Icon name="wifi" size={16} className={isConnected ? "text-green-400" : "text-slate-600"} />
+                                </button>
+                                <button onClick={() => setShowNotifModal(true)} className="relative">
+                                    <Icon name="bell" size={16} className="text-slate-400 hover:text-white" />
+                                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-slate-900"></div>
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex gap-4">
-                            <button onClick={() => setIsHeadsetConnected(!isHeadsetConnected)}><Icon name="headset" size={20} className={isHeadsetConnected ? "text-blue-400" : "text-slate-600"} /></button>
-                            <button onClick={() => setShowWifiModal(true)}><Icon name="wifi" size={20} className={isConnected ? "text-green-400" : "text-slate-600"} /></button>
-                            <button onClick={() => setShowNotifModal(true)} className="relative"><Icon name="bell" size={20} className="text-slate-400 hover:text-white" /><div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-950"></div></button>
-                        </div>
-                    </div>
 
-                    {/* Content Area (Flex-1 fills remaining space) */}
-                    <div className={`flex-1 relative z-10 w-full ${activeTab === 'home' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-                        {activeTab === 'home' && renderHome()}
-                        {activeTab === 'events' && renderEvents()}
-                        {activeTab === 'stats' && renderStats()}
-                        {activeTab === 'hud' && renderHudPage()}
-                        {activeTab === 'settings' && renderSettings()}
-                    </div>
-
-                    {/* Bottom Nav (Static Height, pushes content up) */}
-                    <div className="flex-none bg-slate-900/90 backdrop-blur-xl p-2 pb-6 safe-bottom border-t border-white/5 z-20">
-                        <div className="flex justify-around items-end px-4 max-w-4xl mx-auto">
-                            <NavButton iconName="shield" label="監控" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
-                            <NavButton iconName="video" label="事件" isActive={activeTab === 'events'} onClick={() => setActiveTab('events')} />
-                            <NavButton iconName="monitor" label="HUD" isActive={activeTab === 'hud'} onClick={() => setActiveTab('hud')} isCenter={true} />
-                            <NavButton iconName="activity" label="分析" isActive={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
-                            <NavButton iconName="settings-2" label="設定" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                        {/* Content Area (Flex-1 自動填充) */}
+                        {/* 修改: 移除 overflow-hidden 改為 overflow-y-auto，並根據 tab 決定是否隱藏 */}
+                        <div className={`flex-1 relative z-10 w-full flex flex-col ${activeTab === 'home' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                            {activeTab === 'home' && renderHome()}
+                            {activeTab === 'events' && renderEvents()}
+                            {activeTab === 'stats' && renderStats()}
+                            {activeTab === 'hud' && renderHudPage()}
+                            {activeTab === 'settings' && renderSettings()}
                         </div>
+
+                        {/* Bottom Nav (固定高度 Flex-none) */}
+                        <div className="flex-none bg-slate-900/90 backdrop-blur-xl p-2 pb-6 border-t border-white/5 z-20">
+                            <div className="flex justify-around items-end px-2">
+                                <NavButton iconName="shield" label="監控" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+                                <NavButton iconName="video" label="事件" isActive={activeTab === 'events'} onClick={() => setActiveTab('events')} />
+                                <NavButton iconName="monitor" label="HUD" isActive={activeTab === 'hud'} onClick={() => setActiveTab('hud')} isCenter={true} />
+                                <NavButton iconName="activity" label="分析" isActive={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
+                                <NavButton iconName="settings-2" label="設定" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                            </div>
+                        </div>
+                        
+                        {/* Home Indicator */}
+                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1.5 bg-slate-600/50 rounded-full z-30 pointer-events-none mb-1"></div>
                     </div>
                 </div>
             );
