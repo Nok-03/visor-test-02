@@ -5,32 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>V.I.S.O.R. 行車助理系統 MK-XII</title>
+    <title>V.I.S.O.R. 行車助理系統 MK-XX</title>
     
-    <!-- 1. 核心樣式庫: Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 設定 Tailwind 啟用 Class-based Dark Mode -->
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        slate: {
-                            850: '#151e2e',
-                        },
-                        danger: {
-                            600: '#dc2626',
-                            900: '#7f1d1d',
-                        }
+                        slate: { 850: '#151e2e' },
+                        danger: { 600: '#dc2626', 900: '#7f1d1d' }
                     },
                     animation: {
-                        'urgent-pulse': 'urgentPulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'urgent-pulse': 'urgentPulse 0.1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'flash-border': 'flashBorder 0.2s ease-in-out infinite',
                     },
                     keyframes: {
                         urgentPulse: {
                             '0%, 100%': { opacity: 1 },
-                            '50%': { opacity: .5 },
+                            '50%': { opacity: .2 },
+                        },
+                        flashBorder: {
+                            '0%, 100%': { borderColor: 'rgba(239, 68, 68, 1)', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                            '50%': { borderColor: 'rgba(239, 68, 68, 0)', backgroundColor: 'transparent' },
                         }
                     }
                 }
@@ -38,25 +36,33 @@
         }
     </script>
     
-    <!-- 2. React 核心 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <!-- 3. 圖表庫依賴 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-is/18.2.0/umd/react-is.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
-    
-    <!-- 4. JSX 編譯器 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-
-    <!-- 5. 圖示庫 -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- 6. 自定義樣式與動畫 -->
     <style>
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 背景色調整 */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #000000; /* 全黑背景 */
+            overflow: hidden; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 隱藏滾動條 (Chrome, Safari, Edge) */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* 隱藏滾動條 (IE, Firefox) */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
         
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -83,52 +89,121 @@
 
         .safe-top { padding-top: env(safe-area-inset-top); }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        
+        /* Custom Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #06b6d4;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #06b6d4;
+        }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-black text-slate-900 dark:text-white font-sans selection:bg-cyan-500 selection:text-black overflow-hidden fixed inset-0 transition-colors duration-500">
+<body class="font-sans selection:bg-cyan-500 selection:text-black">
 
-    <div id="root"></div>
+    <div id="root" class="h-full w-full flex justify-center items-center"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
-        const Recharts = window.Recharts || null;
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } = Recharts || {};
 
         const toPascalCase = (str) => str.replace(/(^\w|-\w)/g, (text) => text.replace(/-/, '').toUpperCase());
 
+        // --- Error Boundary (Critical for Debugging) ---
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null, errorInfo: null };
+            }
+            static getDerivedStateFromError(error) { return { hasError: true, error }; }
+            componentDidCatch(error, errorInfo) { 
+                this.setState({ errorInfo });
+                console.error("System Crash:", error, errorInfo); 
+            }
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center overflow-auto safe-top safe-bottom">
+                            <div className="text-5xl mb-4 animate-bounce">⚠️</div>
+                            <h2 className="text-2xl font-black mb-2 text-red-500 tracking-widest">SYSTEM FAILURE</h2>
+                            <p className="text-slate-400 mb-6">系統核心發生嚴重錯誤，請截圖回報。</p>
+                            <div className="w-full bg-black/50 border border-red-900/50 rounded-lg p-4 text-left mb-6 overflow-auto max-h-[40vh]">
+                                <p className="text-red-400 font-mono text-xs font-bold mb-2">{this.state.error && this.state.error.toString()}</p>
+                                <pre className="text-slate-500 font-mono text-[10px] whitespace-pre-wrap">{this.state.errorInfo && this.state.errorInfo.componentStack}</pre>
+                            </div>
+                            <button onClick={() => window.location.reload()} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-white rounded-full font-bold shadow-lg transition-all">重新啟動系統 (REBOOT)</button>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
+        // --- Robust Icon Component ---
         const Icon = ({ name, size = 24, className = "" }) => {
             const containerRef = useRef(null);
+            
             useEffect(() => {
-                if (!window.lucide || !containerRef.current) return;
-                const iconName = toPascalCase(name);
-                const iconNode = window.lucide.icons[iconName];
-                if (!iconNode) return;
-                const svgElement = window.lucide.createElement(iconNode);
-                svgElement.setAttribute('width', size);
-                svgElement.setAttribute('height', size);
-                if (className) svgElement.setAttribute('class', className);
-                containerRef.current.innerHTML = '';
-                containerRef.current.appendChild(svgElement);
+                let mounted = true;
+                const renderIcon = () => {
+                    if (!mounted) return false;
+                    try {
+                        if (!window.lucide || !window.lucide.icons) return false;
+
+                        const iconName = toPascalCase(name);
+                        const iconNode = window.lucide.icons[iconName];
+                        
+                        if (!iconNode) return true; // Icon not found, stop trying but don't crash
+                        
+                        if (containerRef.current) {
+                            const svgElement = window.lucide.createElement(iconNode);
+                            svgElement.setAttribute('width', size);
+                            svgElement.setAttribute('height', size);
+                            if (className) svgElement.setAttribute('class', className);
+                            
+                            containerRef.current.innerHTML = '';
+                            containerRef.current.appendChild(svgElement);
+                            return true; // Success
+                        }
+                        return false; // Ref not ready
+                    } catch (e) {
+                        console.warn(`Icon render failed for ${name}:`, e);
+                        return true; // Stop trying if error to prevent loop
+                    }
+                };
+
+                // Initial render attempt
+                if (!renderIcon()) {
+                    // Poll if lucide not ready
+                    const intervalId = setInterval(() => {
+                        if (!mounted) { clearInterval(intervalId); return; }
+                        if (renderIcon()) clearInterval(intervalId);
+                    }, 100);
+                    return () => { mounted = false; clearInterval(intervalId); };
+                }
+                return () => { mounted = false; };
             }, [name, size, className]);
-            return <span ref={containerRef} style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}></span>;
+
+            return <span ref={containerRef} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size }}></span>;
         };
 
-        // --- [震動標記] 震動 Helper ---
         const vibrate = (pattern) => {
-            // 檢查瀏覽器是否支援 Vibration API (主要支援 Android)
-            if (navigator.vibrate) {
-                // pattern 可以是單一數字(毫秒)或陣列 [震動, 暫停, 震動, ...]
-                navigator.vibrate(pattern);
-            }
+            try {
+                if (navigator.vibrate) {
+                    if (pattern === 'heavy') navigator.vibrate([50, 30, 50, 30, 50, 30]); 
+                    else if (pattern === 'bsd') navigator.vibrate([80, 50, 80]); 
+                    else if (pattern === 'speeding') navigator.vibrate([400]);
+                    else navigator.vibrate(pattern);
+                }
+            } catch (e) { console.warn("Vibration failed", e); }
         };
 
-        // --- 離線備用資料庫 ---
         const MOCK_SPEED_CAMERA_DB = [
-            { id: 'mock_1', limit: 50, lat: 25.0335, lng: 121.5650, address: "信義路五段 (台北101前)" },
-            { id: 'mock_2', limit: 60, lat: 25.0410, lng: 121.5600, address: "忠孝東路/基隆路口" },
+            { id: 'mock_1', limit: 50, lat: 25.0335, lng: 121.5650, address: "信義路五段" },
+            { id: 'mock_2', limit: 60, lat: 25.0410, lng: 121.5600, address: "忠孝東路" },
             { id: 'mock_3', limit: 40, lat: 25.0290, lng: 121.5680, address: "松仁路" },
-            { id: 'mock_4', limit: 80, lat: 25.0380, lng: 121.5500, address: "市民大道高架" },
-            { id: 'mock_99', limit: 30, lat: 25.0345, lng: 121.5648, address: "測試用：虛擬照相機" } 
+            { id: 'mock_4', limit: 80, lat: 25.0380, lng: 121.5500, address: "市民大道" },
+            { id: 'mock_99', limit: 30, lat: 25.0345, lng: 121.5648, address: "測試用相機" } 
         ];
 
         const GOV_API_URL = "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/EA5E6FCD-B82D-43B7-A5CF-E9893253187E/resource/E5086C7F-A14C-4A23-8FFE-8D518923F9F1/download";
@@ -142,28 +217,32 @@
             return R * c; 
         };
 
-        // --- Modals & Overlays ---
+        // --- Components ---
+
+        const Toggle = ({ label, checked, onChange }) => (
+            <div className="flex justify-between items-center py-3 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{label}</span>
+                <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in z-0">
+                    <input type="checkbox" name="toggle" id={`toggle-${label}`} checked={checked} onChange={(e) => onChange(e.target.checked)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 transition-all duration-300 z-10" style={{ right: checked ? '0' : 'auto', left: checked ? 'auto' : '0' }}/>
+                    <label htmlFor={`toggle-${label}`} className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-300 ${checked ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-slate-700'}`}></label>
+                </div>
+            </div>
+        );
+
         const WifiModal = ({ onClose, onConnect, currentSsid }) => {
-            const networks = [
-                { ssid: "V.I.S.O.R. Core AP", signal: 100, secure: true },
-                { ssid: "TPE-Free", signal: 70, secure: false },
-                { ssid: "Coffee Shop 5G", signal: 45, secure: true },
-            ];
+            const networks = [{ ssid: "V.I.S.O.R. Core AP", signal: 100, secure: true }, { ssid: "TPE-Free", signal: 70, secure: false }];
             return (
-                <div className="absolute inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
+                <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 w-full max-w-sm rounded-2xl p-4 shadow-2xl relative z-10 transition-colors duration-300">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 w-full max-w-sm rounded-2xl p-4 shadow-2xl relative z-10">
                         <div className="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
-                            <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2"><Icon name="wifi" size={20} className="text-cyan-600 dark:text-cyan-400" /> 選擇 Wi-Fi 網路</h3>
+                            <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2"><Icon name="wifi" size={20} className="text-cyan-600 dark:text-cyan-400" /> Wi-Fi</h3>
                             <button onClick={onClose}><Icon name="x" size={20} className="text-slate-500 dark:text-slate-400" /></button>
                         </div>
                         <div className="space-y-2">
                             {networks.map((net, idx) => (
                                 <button key={idx} onClick={() => onConnect(net.ssid)} className={`w-full p-3 rounded-xl flex justify-between items-center transition-all ${currentSsid === net.ssid ? 'bg-cyan-100 dark:bg-cyan-900/30 border border-cyan-500/50' : 'bg-slate-50 dark:bg-slate-800 border border-transparent hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <Icon name={net.secure ? "lock" : "wifi"} size={16} className={currentSsid === net.ssid ? "text-cyan-600 dark:text-cyan-400" : "text-slate-500"} />
-                                        <span className={`text-sm font-medium ${currentSsid === net.ssid ? 'text-cyan-800 dark:text-cyan-100' : 'text-slate-700 dark:text-slate-300'}`}>{net.ssid}</span>
-                                    </div>
+                                    <div className="flex items-center gap-3"><Icon name={net.secure ? "lock" : "wifi"} size={16} className={currentSsid === net.ssid ? "text-cyan-600 dark:text-cyan-400" : "text-slate-500"} /><span className={`text-sm font-medium ${currentSsid === net.ssid ? 'text-cyan-800 dark:text-cyan-100' : 'text-slate-700 dark:text-slate-300'}`}>{net.ssid}</span></div>
                                     {currentSsid === net.ssid && <span className="text-[10px] bg-cyan-600 text-white px-2 py-0.5 rounded-full">已連線</span>}
                                 </button>
                             ))}
@@ -175,30 +254,21 @@
 
         const NotificationModal = ({ onClose }) => {
             const [tab, setTab] = useState('speed');
-            const speedLogs = [
-                { time: "10:14", speed: 85, limit: 60, loc: "市民大道高架" },
-                { time: "09:42", speed: 72, limit: 50, loc: "基隆路地下道" },
-                { time: "昨天 18:20", speed: 65, limit: 50, loc: "信義路五段" },
-            ];
-            const connLogs = [
-                { time: "10:00", event: "V.I.S.O.R. Core 已連線", status: "ok" },
-                { time: "09:58", event: "藍牙耳機 (Cardo) 已配對", status: "info" },
-                { time: "09:55", event: "Wi-Fi 連線中斷", status: "err" },
-                { time: "08:30", event: "系統啟動自檢完成", status: "ok" },
-            ];
+            const speedLogs = [{ time: "10:14", speed: 85, limit: 60, loc: "市民大道高架" }];
+            const connLogs = [{ time: "10:00", event: "V.I.S.O.R. Core 已連線", status: "ok" }];
             return (
-                <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 animate-fadeIn">
+                <div className="absolute inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 animate-fadeIn">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-                    <div className="bg-white dark:bg-slate-900 border-t sm:border border-slate-200 dark:border-slate-700 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl relative z-10 h-[70vh] sm:h-auto flex flex-col transition-colors duration-300">
+                    <div className="bg-white dark:bg-slate-900 border-t sm:border border-slate-200 dark:border-slate-700 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl relative z-10 h-[70vh] sm:h-auto flex flex-col">
                         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                            <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2"><Icon name="bell" size={20} className="text-yellow-500 dark:text-yellow-400" /> 通知中心</h3>
+                            <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2"><Icon name="bell" size={20} className="text-yellow-500 dark:text-yellow-400" /> 通知</h3>
                             <button onClick={onClose}><Icon name="x" size={20} className="text-slate-500 dark:text-slate-400" /></button>
                         </div>
                         <div className="flex p-2 gap-2 bg-slate-50 dark:bg-slate-950/50">
-                            <button onClick={() => setTab('speed')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'speed' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>超速紀錄</button>
-                            <button onClick={() => setTab('log')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'log' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>連線日誌</button>
+                            <button onClick={() => setTab('speed')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'speed' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>超速紀錄</button>
+                            <button onClick={() => setTab('log')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'log' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>連線日誌</button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
                             {tab === 'speed' ? speedLogs.map((log, i) => (
                                 <div key={i} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-red-200 dark:border-red-900/30">
                                     <div><div className="text-red-600 dark:text-red-400 font-bold text-sm flex items-center gap-1"><Icon name="alert-circle" size={12} /> {log.speed} km/h</div><div className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{log.loc}</div></div>
@@ -206,7 +276,7 @@
                                 </div>
                             )) : connLogs.map((log, i) => (
                                 <div key={i} className="flex gap-3 items-start">
-                                    <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${log.status === 'ok' ? 'bg-green-500' : log.status === 'err' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+                                    <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${log.status === 'ok' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
                                     <div><div className="text-slate-700 dark:text-slate-300 text-xs">{log.event}</div><div className="text-slate-400 dark:text-slate-600 text-[10px] font-mono">{log.time}</div></div>
                                 </div>
                             ))}
@@ -216,45 +286,18 @@
             );
         };
 
-        // --- 全螢幕摔車警報 Overlay ---
         const CrashAlertOverlay = ({ countdown, onCancel, onConfirm }) => {
             return (
-                <div className="fixed inset-0 z-[100] animate-crash-alert flex flex-col items-center justify-center p-6 text-white safe-top safe-bottom">
+                <div className="absolute inset-0 z-[100] animate-crash-alert flex flex-col items-center justify-center p-6 text-white safe-top safe-bottom rounded-[2.5rem] overflow-hidden">
                     <div className="flex-1 flex flex-col items-center justify-center space-y-6 w-full max-w-md">
-                        <div className="animate-bounce">
-                            <Icon name="alert-triangle" size={120} className="text-white drop-shadow-2xl" />
-                        </div>
-                        
-                        <div className="text-center space-y-2">
-                            <h1 className="text-4xl font-black tracking-wider drop-shadow-md">偵測到劇烈撞擊</h1>
-                            <p className="text-xl font-medium opacity-90">是否需要協助？</p>
-                        </div>
-
-                        <div className="text-8xl font-mono font-black tabular-nums tracking-tighter drop-shadow-lg">
-                            {countdown}
-                        </div>
-
-                        <div className="text-sm font-medium opacity-80 text-center">
-                            秒後自動發送 GPS 求救訊號
-                        </div>
+                        <div className="animate-bounce"><Icon name="alert-triangle" size={120} className="text-white drop-shadow-2xl" /></div>
+                        <div className="text-center space-y-2"><h1 className="text-4xl font-black tracking-wider drop-shadow-md">偵測到劇烈撞擊</h1><p className="text-xl font-medium opacity-90">是否需要協助？</p></div>
+                        <div className="text-8xl font-mono font-black tabular-nums tracking-tighter drop-shadow-lg">{countdown}</div>
+                        <div className="text-sm font-medium opacity-80 text-center">秒後自動發送 GPS 求救訊號</div>
                     </div>
-
                     <div className="w-full max-w-md space-y-4 mt-8">
-                        <button 
-                            onClick={onCancel}
-                            className="w-full py-5 rounded-2xl bg-white text-red-600 font-black text-2xl shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
-                        >
-                            <Icon name="x-circle" size={32} />
-                            我沒事 (取消)
-                        </button>
-                        
-                        <button 
-                            onClick={onConfirm}
-                            className="w-full py-4 rounded-2xl bg-red-900/50 border-2 border-white/30 text-white font-bold text-lg hover:bg-red-900/70 active:scale-95 transition-all flex items-center justify-center gap-2"
-                        >
-                            <Icon name="phone-call" size={24} />
-                            立即求救
-                        </button>
+                        <button onClick={onCancel} className="w-full py-5 rounded-2xl bg-white text-red-600 font-black text-2xl shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2"><Icon name="x-circle" size={32} />我沒事 (取消)</button>
+                        <button onClick={onConfirm} className="w-full py-4 rounded-2xl bg-red-900/50 border-2 border-white/30 text-white font-bold text-lg hover:bg-red-900/70 active:scale-95 transition-all flex items-center justify-center gap-2"><Icon name="phone-call" size={24} />立即求救</button>
                     </div>
                 </div>
             );
@@ -263,47 +306,30 @@
         const SOSButton = ({ onTrigger }) => {
             const [activating, setActivating] = useState(false);
             const [countdown, setCountdown] = useState(3);
-            
             useEffect(() => {
                 let timer;
-                if (activating && countdown > 0) {
-                    timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-                } else if (countdown === 0) {
-                    onTrigger(); 
-                    setActivating(false);
-                    setCountdown(3);
-                    // [震動標記] SOS 倒數結束，確認發送震動 (Pattern: 兩短兩短)
-                    vibrate([200, 100, 200, 100]); 
-                }
+                if (activating && countdown > 0) timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+                else if (countdown === 0) { onTrigger(); setActivating(false); setCountdown(3); vibrate([200, 100, 200, 100]); }
                 return () => clearTimeout(timer);
             }, [activating, countdown, onTrigger]);
-
-            const start = () => { 
-                setActivating(true); 
-                // [震動標記] 按下 SOS 按鈕時的觸覺回饋 (Pattern: 短震動)
-                vibrate(50); 
-            };
+            const start = () => { setActivating(true); vibrate(50); };
             const stop = () => { setActivating(false); setCountdown(3); };
-            
             return (
-                <button 
-                    onMouseDown={start} onMouseUp={stop} onMouseLeave={stop}
-                    onTouchStart={start} onTouchEnd={stop}
-                    className={`relative overflow-hidden p-6 rounded-2xl border transition-all duration-200 flex flex-col items-center justify-center gap-2 active:scale-95 select-none w-full shadow-lg ${activating ? 'bg-red-900/60 border-red-500 animate-sos' : 'bg-gradient-to-br from-red-100 to-red-50 border-red-200 dark:from-red-900/20 dark:to-red-900/10 dark:border-red-500/30'}`}
-                >
+                <button onMouseDown={start} onMouseUp={stop} onMouseLeave={stop} onTouchStart={start} onTouchEnd={stop} className={`relative overflow-hidden p-6 rounded-2xl border transition-all duration-200 flex flex-col items-center justify-center gap-2 active:scale-95 select-none w-full shadow-lg ${activating ? 'bg-red-900/60 border-red-500 animate-sos' : 'bg-gradient-to-br from-red-100 to-red-50 border-red-200 dark:from-red-900/20 dark:to-red-900/10 dark:border-red-500/30'}`}>
                     {activating && <div className="absolute inset-0 bg-red-600/20 z-0" style={{width: `${(3-countdown)/3 * 100}%`, transition: 'width 1s linear'}}></div>}
                     <Icon name="phone-call" size={40} className={`relative z-10 ${activating ? 'text-white' : 'text-red-600 dark:text-red-500'}`} />
-                    <span className={`relative z-10 font-bold text-lg ${activating ? 'text-white' : 'text-red-800 dark:text-red-200'}`}>
-                        {activating ? `釋放以取消 (${countdown})` : '長按 E-SOS 求救'}
-                    </span>
+                    <span className={`relative z-10 font-bold text-lg ${activating ? 'text-white' : 'text-red-800 dark:text-red-200'}`}>{activating ? `釋放以取消 (${countdown})` : '長按 E-SOS 求救'}</span>
                 </button>
             );
         };
 
-        const HUDPreview = ({ options, alertInfo }) => {
-            const isEnabled = (id) => options.find(o => o.id === id)?.enabled;
+        const HUDPreview = ({ options, alertInfo, currentSpeed }) => {
+            const safeOptions = Array.isArray(options) ? options : [];
+            const isEnabled = (id) => safeOptions.find(o => o.id === id)?.enabled;
             const showAlert = alertInfo && alertInfo.distance < 0.3;
-            // HUD 內容始終保持深色風格
+            // 修正：使用 currentSpeed 替代寫死的 58，如果未啟用速度則顯示 --
+            const displaySpeed = isEnabled('speed') ? (currentSpeed || 0) : '--';
+            
             return (
                 <div className={`w-full bg-black border-4 rounded-lg p-2 relative mb-6 transition-all duration-300 ${showAlert ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'border-slate-300 dark:border-slate-700 shadow-lg dark:shadow-[0_0_15px_rgba(34,211,238,0.2)]'}`}>
                     <div className="aspect-[2/1] w-full bg-black relative overflow-hidden font-pixel flex flex-col justify-between p-2">
@@ -312,24 +338,8 @@
                         </div>
                         <div className="flex-1 flex items-center justify-between gap-2 min-h-0">
                             <div className="flex flex-col items-start justify-center min-w-0">
-                                {isEnabled('speed') && (
-                                    <div className="text-white whitespace-nowrap flex items-baseline gap-1">
-                                        <span className={`text-6xl font-bold leading-none ${showAlert ? 'text-red-500' : 'text-cyan-50'}`}>58</span>
-                                    </div>
-                                )}
-                                {showAlert ? (
-                                    <div className="flex items-center gap-2 mt-1 text-red-500 animate-pulse font-bold whitespace-nowrap">
-                                        <div className="border-2 border-red-500 rounded-full w-5 h-5 flex items-center justify-center text-[10px]">{alertInfo.limit}</div>
-                                        <span className="text-sm">{Math.round(alertInfo.distance * 1000)}m</span>
-                                    </div>
-                                ) : (
-                                    isEnabled('nav') && (
-                                        <div className="flex items-center gap-2 mt-1 text-yellow-400 animate-pulse whitespace-nowrap">
-                                            <Icon name="arrow-up-right" size={24} />
-                                            <span className="text-xl font-bold">200m</span>
-                                        </div>
-                                    )
-                                )}
+                                <div className="text-white whitespace-nowrap flex items-baseline gap-1"><span className={`text-6xl font-bold leading-none ${showAlert ? 'text-red-500' : 'text-cyan-50'}`}>{displaySpeed}</span></div>
+                                {showAlert ? <div className="flex items-center gap-2 mt-1 text-red-500 animate-pulse font-bold whitespace-nowrap"><div className="border-2 border-red-500 rounded-full w-5 h-5 flex items-center justify-center text-[10px]">{alertInfo.limit}</div><span className="text-sm">{Math.round(alertInfo.distance * 1000)}m</span></div> : isEnabled('nav') && <div className="flex items-center gap-2 mt-1 text-yellow-400 animate-pulse whitespace-nowrap"><Icon name="arrow-up-right" size={24} /><span className="text-xl font-bold">200m</span></div>}
                             </div>
                             <div className="flex flex-col items-end gap-2 min-w-0">
                                 {isEnabled('camera') && <div className={`flex items-center justify-center w-6 h-6 rounded ${showAlert ? 'bg-red-600 text-white animate-pulse' : 'text-slate-600'}`}><Icon name="camera" size={16} /></div>}
@@ -343,126 +353,92 @@
         };
 
         const NavButton = ({ iconName, label, isActive, onClick, isCenter = false }) => (
-            <button onClick={onClick} className="flex flex-col items-center justify-center gap-1.5 transition-all duration-300 p-2 w-16 group">
-                <div className={`transition-all duration-300 ${isActive ? (isCenter ? 'scale-110' : '-translate-y-1') : ''} ${isCenter ? 'bg-cyan-600 dark:bg-cyan-900/80 p-2 rounded-full border border-cyan-400 shadow-lg dark:shadow-[0_0_15px_rgba(34,211,238,0.3)]' : ''}`}>
-                    <Icon name={iconName} size={24} className={isCenter ? 'text-white dark:text-cyan-400' : (isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300')} strokeWidth={isActive || isCenter ? 2.5 : 2} />
+            <button onClick={onClick} className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 ${isCenter ? 'mb-4' : 'p-2 w-16 group'}`}>
+                <div className={`transition-all duration-300 ${isActive ? (isCenter ? 'scale-110' : '-translate-y-1') : ''} ${isCenter ? 'bg-cyan-600 dark:bg-cyan-900/80 w-14 h-14 flex items-center justify-center rounded-full border-2 border-cyan-400 shadow-lg dark:shadow-[0_0_15px_rgba(34,211,238,0.3)]' : ''}`}>
+                    <Icon name={iconName} size={isCenter ? 28 : 24} className={isCenter ? 'text-white dark:text-cyan-400' : (isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300')} strokeWidth={isActive || isCenter ? 2.5 : 2} />
                 </div>
-                <span className={`text-[10px] font-medium transition-all duration-300 ${isActive || isCenter ? 'text-cyan-600 dark:text-cyan-400 opacity-100' : 'text-slate-400 dark:text-slate-500 opacity-70'} ${isCenter ? 'font-bold' : ''}`}>{label}</span>
+                {!isCenter && <span className={`text-[10px] font-medium transition-all duration-300 ${isActive ? 'text-cyan-600 dark:text-cyan-400 opacity-100' : 'text-slate-400 dark:text-slate-500 opacity-70'}`}>{label}</span>}
             </button>
         );
 
         const App = () => {
-            // Theme State (預設 Night Mode = true)
             const [isNightMode, setIsNightMode] = useState(true);
-
             const [activeTab, setActiveTab] = useState('home');
             const [isSentryMode, setIsSentryMode] = useState(false);
-            const [simulatedSpeed, setSimulatedSpeed] = useState(0);
+            const [gpsSpeed, setGpsSpeed] = useState(0); 
             
             const [isConnected, setIsConnected] = useState(false); 
             const [isHeadsetConnected, setIsHeadsetConnected] = useState(false); 
             const [currentSsid, setCurrentSsid] = useState(""); 
 
-            const [isDemoMode, setIsDemoMode] = useState(true);
             const [location, setLocation] = useState({ lat: 25.033964, lng: 121.564468 });
             const [isLocating, setIsLocating] = useState(false);
-            
             const [showWifiModal, setShowWifiModal] = useState(false);
             const [showNotifModal, setShowNotifModal] = useState(false);
-
-            // Crash Detection State
-            const [crashCountdown, setCrashCountdown] = useState(null); // null means no crash
-
+            const [crashCountdown, setCrashCountdown] = useState(null); 
             const [cameraDB, setCameraDB] = useState(MOCK_SPEED_CAMERA_DB);
-            const [dbStatus, setDbStatus] = useState("離線資料庫");
             const [nearestCamera, setNearestCamera] = useState(null);
             
-            const lastAlertCameraId = useRef(null);
-            const ws = useRef(null);
+            const [bsdLeft, setBsdLeft] = useState(false);
+            const [bsdRight, setBsdRight] = useState(false);
+            const [realTilt, setRealTilt] = useState(0);
+            const [hasSensorPermission, setHasSensorPermission] = useState(false);
 
+            // HUD Options State
             const [hudOptions, setHudOptions] = useState([
-                { id: 'speed', label: '顯示即時時速', enabled: true },
-                { id: 'nav', label: '顯示導航箭頭', enabled: true },
-                { id: 'time', label: '顯示目前時間', enabled: true },
-                { id: 'camera', label: '測速照相提醒', enabled: true },
-                { id: 'calls', label: '顯示來電通知', enabled: false },
-                { id: 'music', label: '顯示音樂資訊', enabled: false },
+                { id: 'speed', label: '行駛速度', enabled: true },
+                { id: 'nav', label: '導航指示', enabled: true },
+                { id: 'camera', label: '測速照相', enabled: true },
+                { id: 'time', label: '當前時間', enabled: true },
+                { id: 'calls', label: '來電顯示', enabled: true },
+                { id: 'music', label: '音樂控制', enabled: false },
             ]);
 
-            const rideData = [
-                { time: '10:00', speed: 20, gForce: 0.1 }, { time: '10:05', speed: 45, gForce: 0.3 },
-                { time: '10:10', speed: 60, gForce: 0.5 }, { time: '10:15', speed: 55, gForce: 0.4 },
-                { time: '10:20', speed: 30, gForce: 0.8 }, { time: '10:25', speed: 0, gForce: 0.1 },
-                { time: '10:30', speed: 40, gForce: 0.2 },
-            ];
+            const lastSpeedAlertTime = useRef(0);
+            const lastAlertCameraId = useRef(null);
+            
+            const geoOptions = useMemo(() => ({
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }), []);
 
-            const eventData = [
-                { id: 1, type: 'danger', title: '後方逼車警示', time: '10:14 AM', loc: '市民大道四段', duration: '0:15' },
-                { id: 2, type: 'warning', title: '異常傾角偵測', time: '10:08 AM', loc: '建國高架', duration: '0:10' },
-                { id: 3, type: 'info', title: '哨兵模式：移動偵測', time: '昨天 18:30', loc: '住家停車場', duration: '0:30' },
-            ];
-
-            // 觸發求救邏輯
-            const handleTriggerSOS = () => {
-                setCrashCountdown(null); 
-                // [震動標記] 發送成功確認震動 (Pattern: 兩短一長)
-                vibrate([200, 100, 500]); 
-                navigator.vibrate(0); 
-
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const lat = position.coords.latitude.toFixed(5);
-                        const lng = position.coords.longitude.toFixed(5);
-                        const googleMapsLink = `https://maps.google.com/?q=${lat},${lng}`;
-                        
-                        const EMERGENCY_SMS = "0912345678"; 
-                        const message = `[V.I.S.O.R. 緊急求救] 偵測到嚴重事故或騎士主動求救！位置: ${googleMapsLink}`;
-                        
-                        console.log("SOS Triggered:", message);
-                        const ua = navigator.userAgent.toLowerCase();
-                        const separator = ua.indexOf('iphone') > -1 ? '&' : '?';
-                        window.location.href = `sms:${EMERGENCY_SMS}${separator}body=${encodeURIComponent(message)}`;
-                    },
-                    (err) => {
-                        alert("無法獲取位置，僅發送求救訊號！");
-                        window.location.href = `tel:110`;
-                    },
-                    { enableHighAccuracy: true, timeout: 5000 }
-                );
-            };
-
-            // 處理摔車偵測 (測試按鈕觸發)
-            const simulateCrash = () => {
-                setCrashCountdown(10); 
-                // [震動標記] 摔車/撞擊偵測 初始強力脈衝震動
-                vibrate([500, 300, 500, 300, 500, 300, 500, 300, 500, 300]); 
-            };
-
-            // 摔車倒數計時器
+            // --- GPS & Sensors ---
             useEffect(() => {
-                let timer;
-                if (crashCountdown !== null && crashCountdown > 0) {
-                    timer = setTimeout(() => setCrashCountdown(c => c - 1), 1000);
-                    // [震動標記] 倒數計時 每秒提示震動
-                    if (crashCountdown % 2 === 0) vibrate(200);
-                } else if (crashCountdown === 0) {
-                    handleTriggerSOS();
+                if (!navigator.geolocation) return;
+                const id = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                        if (pos.coords.speed !== null) {
+                            setGpsSpeed(Math.round(pos.coords.speed * 3.6));
+                        }
+                    },
+                    (err) => console.warn(err),
+                    geoOptions
+                );
+                return () => navigator.geolocation.clearWatch(id);
+            }, [geoOptions]);
+
+            const requestSensorPermission = async () => {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const response = await DeviceOrientationEvent.requestPermission();
+                        if (response === 'granted') { setHasSensorPermission(true); window.addEventListener('deviceorientation', handleOrientation); } 
+                        else { alert('權限被拒絕'); }
+                    } catch (e) { console.error(e); }
+                } else {
+                    setHasSensorPermission(true);
+                    window.addEventListener('deviceorientation', handleOrientation);
                 }
-                return () => clearTimeout(timer);
-            }, [crashCountdown]);
-
-            // 取消摔車警報
-            const cancelCrashAlert = () => {
-                setCrashCountdown(null);
-                // [震動標記] 取消警報時停止所有震動
-                navigator.vibrate(0); 
             };
+            const handleOrientation = (event) => { if (event.gamma !== null) setRealTilt(Math.round(event.gamma)); };
+            useEffect(() => { return () => { window.removeEventListener('deviceorientation', handleOrientation); }; }, []);
 
+            // --- Logic ---
             const fetchSpeedCameraData = async () => {
-                setDbStatus("更新中...");
                 try {
                     const response = await fetch(GOV_API_URL, { method: 'GET' });
-                    if (!response.ok) throw new Error("Network response was not ok");
+                    if (!response.ok) throw new Error("Network error");
                     const data = await response.json();
                     const formattedData = data.result?.records?.map((item, index) => ({
                         id: `gov_${index}`,
@@ -471,17 +447,9 @@
                         lng: parseFloat(item.Longitude || item.lon),
                         address: item.Address || item.Location || "未知路段"
                     })).filter(item => !isNaN(item.lat) && !isNaN(item.lng));
-
-                    if (formattedData && formattedData.length > 0) {
-                        setCameraDB(formattedData);
-                        setDbStatus(`已更新 (${formattedData.length} 筆)`);
-                    } else { throw new Error("Empty data"); }
-                } catch (error) {
-                    console.warn("API 更新失敗，使用離線資料庫", error);
-                    setDbStatus("離線模式 (CORS)");
-                }
+                    if (formattedData && formattedData.length > 0) setCameraDB(formattedData);
+                } catch (error) { }
             };
-
             useEffect(() => { fetchSpeedCameraData(); }, []);
 
             useEffect(() => {
@@ -495,278 +463,293 @@
                 });
                 if (closest && closest.distance < 1.0) { 
                     setNearestCamera(closest);
-                    if (closest.distance < 0.3 && lastAlertCameraId.current !== closest.id) {
-                        // [震動標記] 進入測速照相紅色警戒 (300m) 震動警示 (Pattern: 兩短一長)
-                        vibrate([200, 100, 500]); 
-                        lastAlertCameraId.current = closest.id;
-                    }
-                } else { 
-                    setNearestCamera(null); 
-                    lastAlertCameraId.current = null;
-                }
+                    if (closest.distance < 0.3 && lastAlertCameraId.current !== closest.id) { vibrate([200, 100, 500]); lastAlertCameraId.current = closest.id; }
+                } else { setNearestCamera(null); lastAlertCameraId.current = null; }
             }, [location, cameraDB]);
 
             useEffect(() => {
-                const connectWebSocket = () => {
-                    try {
-                        ws.current = new WebSocket('ws://192.168.4.1:8000/ws');
-                        ws.current.onopen = () => { setIsConnected(true); setIsDemoMode(false); setCurrentSsid("V.I.S.O.R. Core AP"); };
-                        ws.current.onmessage = (event) => {
-                            const data = JSON.parse(event.data);
-                            if (data.speed) setSimulatedSpeed(data.speed);
-                        };
-                        ws.current.onclose = () => { setIsConnected(false); setIsDemoMode(true); setCurrentSsid(""); };
-                        ws.current.onerror = (err) => {};
-                    } catch (e) { setIsDemoMode(true); }
-                };
-                connectWebSocket();
-                return () => { if (ws.current) ws.current.close(); };
-            }, []);
-
-            useEffect(() => {
-                if (!isDemoMode) return;
-                const interval = setInterval(() => { setSimulatedSpeed(Math.floor(Math.random() * (65 - 35 + 1) + 35)); }, 800);
-                return () => clearInterval(interval);
-            }, [isDemoMode]);
+                if (nearestCamera && nearestCamera.distance < 0.3 && gpsSpeed > nearestCamera.limit) {
+                    const now = Date.now();
+                    if (now - lastSpeedAlertTime.current > 2000) { vibrate('speeding'); lastSpeedAlertTime.current = now; }
+                }
+            }, [gpsSpeed, nearestCamera]);
 
             const handleLocate = (isManual = false) => {
                 if (!navigator.geolocation) { if (isManual) alert("您的裝置或瀏覽器不支援地理定位功能。"); return; }
                 setIsLocating(true);
-                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-                        setIsLocating(false);
-                    },
-                    (error) => {
-                        console.warn(`定位失敗 (${error.code}): ${error.message}`);
-                        if (isManual) {
-                            let msg = "無法獲取位置，使用預設座標。";
-                            if(window.isSecureContext === false) msg += "\n(請使用 HTTPS)";
-                            alert(msg);
-                        }
-                        setIsLocating(false);
-                    },
-                    options
+                    (pos) => { setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setIsLocating(false); },
+                    (err) => { if (isManual) alert("無法獲取位置，使用預設座標。"); setIsLocating(false); },
+                    geoOptions
                 );
             };
 
-            useEffect(() => { handleLocate(false); }, []);
-
-            const toggleFullScreen = () => {
-                if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch((e) => console.log(e)); } 
-                else { if (document.exitFullscreen) document.exitFullscreen(); }
+            const toggleBSD = (side) => {
+                if (side === 'left') { const next = !bsdLeft; setBsdLeft(next); if (next) vibrate('bsd'); } 
+                else { const next = !bsdRight; setBsdRight(next); if (next) vibrate('bsd'); }
             };
 
-            const handleWifiConnect = (ssid) => {
-                if (ssid === "V.I.S.O.R. Core AP") { setIsConnected(true); setCurrentSsid(ssid); } 
-                else { setIsConnected(false); setCurrentSsid(ssid); }
-                setShowWifiModal(false);
-            };
+            const simulateCrash = () => { setCrashCountdown(10); vibrate('heavy'); };
+            const simulateSpeeding = () => { setGpsSpeed(120); setTimeout(() => setGpsSpeed(0), 3000); };
+            const handleTriggerSOS = () => { setCrashCountdown(null); vibrate([200, 100, 500]); navigator.vibrate(0); };
+            
+            useEffect(() => {
+                let timer;
+                if (crashCountdown !== null && crashCountdown > 0) {
+                    timer = setTimeout(() => setCrashCountdown(c => c - 1), 1000);
+                    if (crashCountdown % 2 === 0) vibrate('heavy');
+                } else if (crashCountdown === 0) { setCrashCountdown(null); handleTriggerSOS(); }
+                return () => clearTimeout(timer);
+            }, [crashCountdown]);
 
-            // --- Theme Control ---
+            const cancelCrashAlert = () => { setCrashCountdown(null); navigator.vibrate(0); };
+            const handleWifiConnect = (ssid) => { if (ssid === "V.I.S.O.R. Core AP") { setIsConnected(true); setCurrentSsid(ssid); } else { setIsConnected(false); setCurrentSsid(ssid); } setShowWifiModal(false); };
             const toggleTheme = () => setIsNightMode(!isNightMode);
 
-            // --- Home Page ---
-            const renderHome = () => (
-                <div className="h-full w-full flex flex-col p-2 gap-2 animate-fadeIn">
-                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden relative flex flex-col shadow-2xl transition-colors duration-300">
-                        <div className="flex-1 relative bg-slate-100 dark:bg-slate-900">
-                            <iframe title="Google Maps" width="100%" height="100%" frameBorder="0" style={{border:0}} className="opacity-90 transition-opacity" src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=16&output=embed&ui=min`} allowFullScreen></iframe>
-                            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-                                <button onClick={fetchSpeedCameraData} className="bg-white/80 dark:bg-slate-800/80 backdrop-blur p-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 shadow-lg active:scale-95 transition-all"><Icon name="refresh-cw" size={20} /></button>
-                                <button onClick={() => handleLocate(true)} className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur p-3 rounded-xl border border-slate-200 dark:border-slate-600 shadow-lg active:scale-95 transition-all ${isLocating ? 'text-cyan-600 dark:text-cyan-400 animate-pulse' : 'text-slate-700 dark:text-slate-300'}`}><Icon name="crosshair" size={20} /></button>
+            // --- Page Renders ---
+
+            const renderHome = () => {
+                const isSpeeding = nearestCamera && nearestCamera.distance < 0.3 && gpsSpeed > nearestCamera.limit;
+                const displayTilt = hasSensorPermission ? realTilt : 0;
+
+                return (
+                    <div className="h-full w-full flex flex-col p-4 gap-4 animate-fadeIn pb-24 overflow-y-auto no-scrollbar">
+                        <div className="h-48 w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden relative shrink-0 shadow-lg">
+                            <iframe title="Google Maps" width="100%" height="100%" frameBorder="0" style={{border:0}} className="opacity-90" src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=16&output=embed&ui=min`} allowFullScreen></iframe>
+                            <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
+                                <button onClick={() => handleLocate(true)} className={`bg-white/90 dark:bg-slate-800/90 backdrop-blur p-2 rounded-lg border border-slate-300 dark:border-slate-600 shadow active:scale-95 ${isLocating ? 'text-cyan-500' : 'text-slate-700 dark:text-slate-300'}`}><Icon name="crosshair" size={16} /></button>
                             </div>
                             {nearestCamera && nearestCamera.distance < 0.3 && (
-                                <div className="absolute top-4 left-4 right-20 sm:w-auto bg-red-100/90 dark:bg-red-900/90 backdrop-blur-md border border-red-500 p-3 rounded-xl z-10 animate-alert shadow-lg flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-red-500 dark:bg-white rounded-full p-1"><Icon name="alert-triangle" size={20} className="text-white dark:text-red-600" /></div>
-                                        <div>
-                                            <div className="text-red-900 dark:text-white font-bold text-sm">前方測速照相</div>
-                                            <div className="text-red-700 dark:text-red-200 text-xs">限速 {nearestCamera.limit} km/h</div>
-                                        </div>
+                                <div className="absolute bottom-2 left-2 right-2 bg-red-900/90 backdrop-blur-md border border-red-500 p-2 rounded-lg z-10 animate-alert shadow-lg flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Icon name="alert-triangle" size={16} className="text-white" />
+                                        <div className="text-white font-bold text-xs">測速 {nearestCamera.limit}</div>
                                     </div>
-                                    <div className="text-red-900 dark:text-white font-mono font-bold text-xl ml-4">{Math.round(nearestCamera.distance*1000)}m</div>
+                                    <div className="text-white font-mono font-bold text-sm">{Math.round(nearestCamera.distance*1000)}m</div>
                                 </div>
                             )}
                         </div>
-                        <div className="flex-none h-auto min-h-[140px] bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-700 p-6 flex justify-between items-end relative z-20 backdrop-blur-lg transition-colors duration-300">
-                            <div className="flex flex-col">
-                                <div className="text-slate-500 dark:text-slate-400 text-xs font-bold tracking-widest uppercase mb-1">Current Speed</div>
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-8xl font-black text-cyan-600 dark:text-cyan-400 font-mono tracking-tighter drop-shadow-sm dark:drop-shadow-[0_0_15px_rgba(34,211,238,0.3)]">{simulatedSpeed}</span>
-                                    <span className="text-2xl text-slate-400 dark:text-slate-500 font-medium">km/h</span>
+
+                        <div className={`flex-1 min-h-[250px] bg-white dark:bg-slate-900 rounded-2xl border-4 relative flex flex-col items-center justify-center shadow-lg transition-all duration-100 overflow-hidden
+                            ${bsdLeft ? 'border-l-red-500' : 'border-l-slate-200 dark:border-l-slate-700'} 
+                            ${bsdRight ? 'border-r-red-500' : 'border-r-slate-200 dark:border-r-slate-700'}
+                            ${(bsdLeft || bsdRight) ? 'border-b-red-500' : 'border-b-slate-200 dark:border-b-slate-700'}
+                             border-t-slate-200 dark:border-t-slate-700
+                        `}>
+                            {(bsdLeft || bsdRight) && <div className="absolute inset-0 bg-red-500/10 animate-flash-border pointer-events-none z-0"></div>}
+                            
+                            <div className="absolute top-4 w-full flex justify-between px-6 z-10">
+                                <div className="text-left"><div className="text-xs text-slate-400 font-bold tracking-widest">TILT</div>{!hasSensorPermission && <button onClick={requestSensorPermission} className="text-[10px] text-cyan-500 underline">啟用</button>}</div>
+                                <div className="text-right"><div className="text-xs text-slate-400 font-bold tracking-widest">GPS</div></div>
+                            </div>
+
+                            <div className="flex flex-col items-center z-10 mt-2">
+                                <div className={`text-9xl font-black font-mono tracking-tighter leading-none transition-colors duration-200 ${isSpeeding ? 'text-red-600 animate-pulse' : 'text-slate-800 dark:text-white'}`}>
+                                    {gpsSpeed}
+                                </div>
+                                <div className={`text-2xl font-bold tracking-[0.3em] ${isSpeeding ? 'text-red-500' : 'text-slate-400'}`}>KM/H</div>
+                            </div>
+
+                            <div className="absolute bottom-16 w-full px-8 flex justify-center z-10">
+                                <div className="relative w-full max-w-[200px] h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-400 -translate-x-1/2 z-20"></div>
+                                    <div className="absolute top-0 bottom-0 bg-cyan-500 transition-all duration-100 ease-linear" style={{left: '50%', width: `${Math.abs(displayTilt) * 2}%`, transform: `translateX(${displayTilt < 0 ? '-100%' : '0'})`}}></div>
                                 </div>
                             </div>
-                            <div className="flex flex-col items-end gap-3 pb-2">
-                                <div className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 transition-colors ${isConnected ? 'bg-green-100 dark:bg-green-900/30 border-green-500/50 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400'}`}>
-                                    <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]' : 'bg-slate-400 dark:bg-slate-500'}`}></div>
-                                    {isConnected ? 'ONLINE' : 'OFFLINE'}
-                                </div>
-                                {isDemoMode && <span className="text-[10px] text-slate-500 dark:text-slate-600 font-mono bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800">DEMO MODE</span>}
+
+                            <div className="absolute bottom-2 w-full flex justify-between px-4 z-20 opacity-30 hover:opacity-100 transition-opacity">
+                                <button onClick={() => toggleBSD('left')} className="p-2 bg-slate-800/50 rounded-lg text-[10px] text-white">L</button>
+                                <button onClick={() => toggleBSD('right')} className="p-2 bg-slate-800/50 rounded-lg text-[10px] text-white">R</button>
                             </div>
                         </div>
-                    </div>
-                </div>
-            );
 
-            // --- Events Page ---
-            const renderEvents = () => (
-                <div className="h-full w-full max-w-4xl mx-auto p-4 space-y-6 animate-fadeIn pb-32">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <button onClick={() => setIsSentryMode(!isSentryMode)} className={`p-6 rounded-2xl flex flex-row sm:flex-col items-center justify-center gap-4 transition-all duration-300 border shadow-lg active:scale-[0.98] ${isSentryMode ? 'bg-cyan-100 dark:bg-cyan-900/40 border-cyan-500/50 text-cyan-800 dark:text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-750'}`}>
-                            <Icon name="eye" size={40} className={isSentryMode ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500'} />
-                            <span className="font-bold text-lg">{isSentryMode ? '哨兵模式：開啟' : '哨兵模式：關閉'}</span>
+                        <div className="shrink-0">
+                            <SOSButton onTrigger={handleTriggerSOS} />
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderEvents = () => {
+                const events = [
+                    { id: 1, type: 'sentinel', title: '哨兵模式觸發', time: '10:42 AM', loc: '光華商場停車場', urgent: false },
+                    { id: 2, type: 'impact', title: '偵測到劇烈震動', time: '09:15 AM', loc: '市民大道三段', urgent: true },
+                    { id: 3, type: 'recording', title: '緊急錄影存檔', time: '昨天', loc: '基隆路地下道', urgent: false },
+                ];
+
+                return (
+                    <div className="h-full w-full p-4 space-y-4 animate-fadeIn pb-32 overflow-y-auto no-scrollbar">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">事件紀錄</h2>
+                        
+                        <button onClick={() => setIsSentryMode(!isSentryMode)} className={`w-full p-6 rounded-2xl flex flex-row items-center justify-center gap-4 transition-all duration-300 border shadow-lg active:scale-[0.98] ${isSentryMode ? 'bg-cyan-100 dark:bg-cyan-900/40 border-cyan-500/50 text-cyan-800 dark:text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-750'}`}>
+                            <Icon name="eye" size={32} className={isSentryMode ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500'} />
+                            <div className="flex flex-col text-left">
+                                <span className="font-bold text-lg">{isSentryMode ? '哨兵模式：運作中' : '哨兵模式：已關閉'}</span>
+                                <span className="text-xs opacity-70">停車時自動偵測周圍動靜</span>
+                            </div>
                         </button>
-                        <SOSButton onTrigger={handleTriggerSOS} />
-                    </div>
-                    <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-white pl-1 border-l-4 border-cyan-500 ml-1">智慧事件簿</h2>
-                        {eventData.map((event) => (
-                            <div key={event.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-4 hover:border-cyan-500/40 transition-colors shadow-sm">
-                                <div className="w-full sm:w-32 h-32 bg-slate-100 dark:bg-slate-900 rounded-xl flex-shrink-0 flex items-center justify-center relative overflow-hidden group cursor-pointer border border-slate-200 dark:border-slate-700/50">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-900"></div>
-                                    <Icon name="play-circle" size={40} className="text-slate-600 dark:text-white/80 z-10 group-hover:scale-110 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-all" />
-                                    <span className="absolute bottom-2 right-2 text-xs bg-white/80 dark:bg-black/80 text-slate-900 dark:text-white px-2 py-0.5 rounded font-mono">{event.duration}</span>
-                                </div>
-                                <div className="flex-1 flex flex-col justify-between py-1">
-                                    <div>
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="text-slate-800 dark:text-white font-bold text-lg leading-tight">{event.title}</h3>
-                                            {event.type === 'danger' && <div className="flex items-center gap-1 text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-900/20 px-2 py-0.5 rounded text-xs font-bold"><Icon name="alert-triangle" size={14} /> 危險</div>}
-                                        </div>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 flex items-center gap-1"><Icon name="map-pin" size={14} /> {event.loc}</p>
-                                        <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">{event.time}</p>
-                                    </div>
-                                    <div className="flex gap-3 mt-4">
-                                        <button className="flex-1 bg-cyan-100 dark:bg-cyan-600/20 hover:bg-cyan-200 dark:hover:bg-cyan-600/30 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30 text-sm py-2 rounded-lg transition-colors font-medium">回放影片</button>
-                                        <button className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm py-2 rounded-lg transition-colors font-medium">下載檔案</button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
 
-            const renderStats = () => (
-                <div className="h-full w-full max-w-4xl mx-auto p-4 space-y-6 animate-fadeIn pb-32">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">騎乘分析</h2>
-                    <div className="bg-gradient-to-br from-cyan-800 to-blue-900 p-6 rounded-2xl text-white flex justify-between items-center shadow-lg border border-cyan-500/20">
-                        <div>
-                            <div className="text-cyan-200 text-xs uppercase tracking-wider font-semibold">今日安全評分</div>
-                            <div className="text-6xl font-black mt-2 bg-gradient-to-r from-white to-cyan-300 bg-clip-text text-transparent">92<span className="text-lg text-cyan-200/50">/100</span></div>
-                        </div>
-                        <div className="text-right space-y-2 border-l border-white/10 pl-6">
-                            <div className="text-sm text-blue-200 flex items-center justify-end gap-2">急煞次數 <span className="font-bold text-white text-lg">1</span></div>
-                            <div className="text-sm text-blue-200 flex items-center justify-end gap-2">危險超車 <span className="font-bold text-white text-lg">0</span></div>
-                            <div className="text-sm text-blue-200 flex items-center justify-end gap-2">今日里程 <span className="font-bold text-white text-lg">12.5</span> km</div>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 h-[300px]">
-                        <h3 className="text-slate-600 dark:text-slate-300 font-bold mb-4 text-sm flex items-center gap-2"><Icon name="activity" size={16} className="text-cyan-600 dark:text-cyan-400"/> 速度與G值分析</h3>
-                        <div className="h-[240px] w-full">
-                            {Recharts ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={rideData} margin={{top: 10, right: 0, left: -20, bottom: 0}}>
-                                        <defs>
-                                            <linearGradient id="colorSpeed" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4}/>
-                                                <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke={isNightMode ? "#334155" : "#e2e8f0"} vertical={false} />
-                                        <XAxis dataKey="time" stroke={isNightMode ? "#64748b" : "#94a3b8"} fontSize={10} tickLine={false} axisLine={false} />
-                                        <YAxis stroke={isNightMode ? "#64748b" : "#94a3b8"} fontSize={10} tickLine={false} axisLine={false} />
-                                        <Tooltip contentStyle={{backgroundColor: isNightMode ? '#0f172a' : '#fff', borderColor: isNightMode ? '#334155' : '#e2e8f0', borderRadius: '8px', color: isNightMode ? '#fff' : '#1e293b', fontSize: '12px'}} itemStyle={{color: '#22d3ee'}} />
-                                        <Area type="monotone" dataKey="speed" stroke="#22d3ee" strokeWidth={2} fillOpacity={1} fill="url(#colorSpeed)" activeDot={{r: 6, fill: "#22d3ee"}} />
-                                        <Line type="monotone" dataKey="gForce" stroke="#f87171" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-slate-500">Loading Charts...</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-
-            const renderHudPage = () => (
-                <div className="h-full w-full max-w-2xl mx-auto p-4 space-y-6 animate-fadeIn pb-32">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">HUD 顯示配置</h2>
-                    <HUDPreview options={hudOptions} alertInfo={nearestCamera} />
-                    <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                            <h3 className="text-cyan-600 dark:text-cyan-400 text-sm font-bold mb-3 uppercase tracking-wider">顯示內容開關</h3>
-                            {hudOptions.map((item) => (
-                                <div key={item.id} className="flex justify-between items-center py-3 border-b border-slate-100 dark:border-slate-700/50 last:border-0">
-                                    <span className="text-slate-700 dark:text-white text-sm">{item.label}</span>
-                                    <div onClick={() => setHudOptions(prev => prev.map(o => o.id === item.id ? { ...o, enabled: !o.enabled } : o))} 
-                                        className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 ${item.enabled ? 'bg-cyan-600' : 'bg-slate-200 dark:bg-slate-600'}`}>
-                                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${item.enabled ? 'translate-x-6' : ''}`}></div>
+                        <div className="space-y-3">
+                            {events.map(ev => (
+                                <div key={ev.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 shadow-sm">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${ev.urgent ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
+                                        <Icon name={ev.type === 'sentinel' ? 'user-x' : ev.type === 'impact' ? 'activity' : 'video'} size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-slate-900 dark:text-slate-200 font-bold text-sm">{ev.title}</div>
+                                        <div className="text-slate-500 dark:text-slate-500 text-xs">{ev.loc}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-slate-400 dark:text-slate-600 text-[10px] font-mono">{ev.time}</div>
+                                        <button className="mt-1 text-cyan-600 dark:text-cyan-400 text-xs font-medium">查看</button>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                        <div className="p-4">
-                            <h3 className="text-cyan-600 dark:text-cyan-400 text-sm font-bold mb-3 uppercase tracking-wider">OLED 亮度</h3>
-                            <div className="flex items-center gap-3">
-                                <Icon name="sun" size={16} className="text-slate-400" />
-                                <input type="range" className="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-cyan-500" defaultValue="80" />
-                                <Icon name="sun" size={24} className="text-slate-800 dark:text-white" />
+                    </div>
+                );
+            };
+
+            const renderStats = () => (
+                <div className="h-full w-full p-4 space-y-6 animate-fadeIn pb-32 overflow-y-auto no-scrollbar">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">騎乘分析</h2>
+                    
+                    {/* Simplified Chart Placeholder using CSS */}
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div className="flex justify-between items-end mb-4">
+                            <div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">本週里程</div>
+                                <div className="text-2xl font-black text-slate-900 dark:text-white font-mono">142<span className="text-sm ml-1 text-slate-500">km</span></div>
+                            </div>
+                            <div className="text-green-500 text-xs font-bold flex items-center gap-1">
+                                <Icon name="trending-up" size={14} /> +12%
+                            </div>
+                        </div>
+                        <div className="h-32 flex items-end justify-between gap-2 px-2">
+                            {[40, 65, 30, 80, 50, 90, 45].map((h, i) => (
+                                <div key={i} className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-sm relative group">
+                                    <div className="absolute bottom-0 left-0 right-0 bg-cyan-500 dark:bg-cyan-600 rounded-t-sm transition-all duration-500 hover:bg-cyan-400" style={{height: `${h}%`}}></div>
+                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-400">
+                                        {['M','T','W','T','F','S','S'][i]}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                <Icon name="clock" size={14} /> 騎乘時間
+                            </div>
+                            <div className="text-xl font-black text-slate-800 dark:text-slate-200">12<span className="text-sm mx-1">h</span>30<span className="text-sm ml-1">m</span></div>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                <Icon name="zap" size={14} /> 平均速度
+                            </div>
+                            <div className="text-xl font-black text-slate-800 dark:text-slate-200">42<span className="text-sm ml-1">km/h</span></div>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm col-span-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                    <Icon name="battery" size={14} /> 安全帽電量
+                                </div>
+                                <span className="text-green-500 text-xs font-bold">85%</span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full mt-3 overflow-hidden">
+                                <div className="h-full bg-green-500 w-[85%]"></div>
                             </div>
                         </div>
                     </div>
                 </div>
             );
 
-            const renderSettings = () => (
-                <div className="h-full w-full max-w-2xl mx-auto p-4 space-y-6 animate-fadeIn pb-32">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">個人化設定</h2>
-                    <div className="space-y-4">
-                        <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 p-4 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-lg text-slate-600 dark:text-slate-300"><Icon name={isNightMode ? "moon" : "sun"} size={24} /></div>
-                                <div className="text-left">
-                                    <div className="text-slate-900 dark:text-white font-bold text-sm">介面主題</div>
-                                    <div className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">目前：{isNightMode ? '夜間模式' : '日間模式'}</div>
-                                </div>
-                            </div>
-                            <button onClick={toggleTheme} className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 ${isNightMode ? 'bg-indigo-600' : 'bg-yellow-400'}`}>
-                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isNightMode ? 'translate-x-6' : ''}`}></div>
-                            </button>
+            const renderHudPage = () => {
+                const toggleHudOption = (id, val) => {
+                    setHudOptions(prev => prev.map(opt => opt.id === id ? { ...opt, enabled: val } : opt));
+                };
+
+                return (
+                    <div className="h-full w-full animate-fadeIn overflow-y-auto no-scrollbar pb-32">
+                        <div className="p-4 pb-2">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">HUD 抬頭顯示器</h2>
                         </div>
-                        <button onClick={simulateCrash} className="w-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 py-4 rounded-xl font-bold border border-red-200 dark:border-red-500/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-all flex items-center justify-center gap-2">
-                            <Icon name="alert-triangle" size={18} /> 模擬摔車偵測 (測試用)
-                        </button>
-                        <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                            <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                                <h3 className="text-cyan-600 dark:text-cyan-400 text-sm font-bold mb-4 uppercase tracking-wider flex items-center gap-2"><Icon name="cpu" size={16} /> AI 防護參數</h3>
-                                <div className="mb-6">
-                                    <div className="flex justify-between text-slate-700 dark:text-white text-sm mb-2"><span>後方逼車警示距離</span><span className="text-cyan-600 dark:text-cyan-400 font-mono">8.0m</span></div>
-                                    <input type="range" className="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-cyan-500" defaultValue="40" />
-                                    <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1"><span>近</span><span>遠</span></div>
-                                </div>
+                        
+                        {/* 修正：提高 z-index 到 50，避免被下方的 toggle-checkbox (z-10) 穿透 */}
+                        <div className="sticky top-0 z-50 bg-gray-50 dark:bg-slate-950 px-4 pb-4 shadow-sm transition-colors duration-300">
+                            {/* 修正：將 gpsSpeed 傳入，使預覽畫面連動真實數據 */}
+                            <HUDPreview options={hudOptions} alertInfo={nearestCamera} currentSpeed={gpsSpeed} />
+                            <p className="text-xs text-slate-500 text-center mt-2">預覽模式：實際顯示將投射於安全帽鏡片</p>
+                        </div>
+
+                        <div className="px-4 pb-4 mt-4">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+                                <h3 className="text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">顯示項目</h3>
+                                {hudOptions.map(opt => (
+                                    <Toggle 
+                                        key={opt.id} 
+                                        label={opt.label} 
+                                        checked={opt.enabled} 
+                                        onChange={(val) => toggleHudOption(opt.id, val)} 
+                                    />
+                                ))}
                             </div>
                         </div>
-                        <button onClick={toggleFullScreen} className="w-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-4 rounded-xl font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-all flex items-center justify-center gap-2"><Icon name="maximize" size={18} /> 切換全螢幕模式</button>
-                        <button className="w-full bg-white dark:bg-slate-800 text-red-500 dark:text-red-400 py-4 rounded-xl font-bold border border-slate-200 dark:border-slate-700 hover:bg-red-50 dark:hover:bg-slate-700/80 hover:border-red-200 dark:hover:border-red-500/30 transition-all flex items-center justify-center gap-2"><Icon name="log-out" size={18} /> 登出 V.I.S.O.R.</button>
                     </div>
+                );
+            };
+
+            const renderSettings = () => (
+                 <div className="h-full w-full p-4 space-y-6 animate-fadeIn pb-32 overflow-y-auto no-scrollbar">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">系統設定</h2>
+                    
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-4">
+                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">測試功能</h3>
+                        <button onClick={simulateSpeeding} className="w-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 py-3 rounded-xl font-bold border border-orange-200 dark:border-orange-500/50 hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-all flex items-center justify-center gap-2">
+                            <Icon name="gauge" size={18} /> 模擬超速警示
+                        </button>
+                         <button onClick={simulateCrash} className="w-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 py-3 rounded-xl font-bold border border-red-200 dark:border-red-500/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-all flex items-center justify-center gap-2">
+                            <Icon name="alert-triangle" size={18} /> 模擬摔車偵測
+                        </button>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+                        <h3 className="text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">音訊與震動</h3>
+                        <Toggle label="語音導航" checked={true} onChange={()=>{}} />
+                        <Toggle label="超速語音提醒" checked={true} onChange={()=>{}} />
+                        <Toggle label="手把震動回饋" checked={true} onChange={()=>{}} />
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+                        <h3 className="text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">裝置資訊</h3>
+                        <div className="flex justify-between py-2 text-sm">
+                            <span className="text-slate-600 dark:text-slate-400">韌體版本</span>
+                            <span className="text-slate-900 dark:text-slate-200 font-mono">v2.4.1 MK-XX</span>
+                        </div>
+                        <div className="flex justify-between py-2 text-sm border-t border-slate-100 dark:border-slate-800">
+                            <span className="text-slate-600 dark:text-slate-400">V.I.S.O.R. Core ID</span>
+                            <span className="text-slate-900 dark:text-slate-200 font-mono">A7-8821-X</span>
+                        </div>
+                    </div>
+                    
+                    <button className="w-full py-3 text-red-500 text-sm font-bold">重置所有設定</button>
                 </div>
             );
 
             return (
                 <div className={isNightMode ? 'dark' : ''}>
                     {crashCountdown !== null && <CrashAlertOverlay countdown={crashCountdown} onCancel={cancelCrashAlert} onConfirm={handleTriggerSOS} />}
-                    <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 dark:bg-black font-sans p-0 sm:p-4 transition-colors duration-500">
+                    
+                    <div className="flex flex-col justify-center items-center h-full min-h-screen bg-gray-900 font-sans transition-colors duration-500">
                         <div className="w-full max-w-md h-[100dvh] sm:h-[90vh] sm:max-h-[880px] bg-white dark:bg-slate-950 sm:rounded-[3rem] sm:border-8 sm:border-slate-300 dark:sm:border-slate-800 overflow-hidden relative shadow-2xl flex flex-col sm:ring-1 sm:ring-black/5 dark:sm:ring-white/10 transition-colors duration-300">
+                            
                             {showWifiModal && <WifiModal onClose={() => setShowWifiModal(false)} onConnect={handleWifiConnect} currentSsid={currentSsid} />}
                             {showNotifModal && <NotificationModal onClose={() => setShowNotifModal(false)} />}
-                            <div className="flex-none bg-white/90 dark:bg-slate-950/90 backdrop-blur px-6 pt-5 pb-2 flex justify-between items-center z-20 select-none border-b border-slate-100 dark:border-slate-900 transition-colors duration-300">
-                                <div className="flex items-center gap-2">
-                                    <Icon name="shield-check" size={20} className="text-cyan-600 dark:text-cyan-400" />
-                                    <h1 className="text-lg font-black text-slate-800 dark:text-white tracking-widest italic font-mono">V.I.S.O.R.</h1>
-                                </div>
+                            
+                            {/* Status Bar */}
+                            <div className="flex-none bg-white/90 dark:bg-slate-950/90 backdrop-blur px-6 pt-5 pb-2 flex justify-between items-center z-20 select-none border-b border-slate-100 dark:border-slate-900 transition-colors duration-300 safe-top">
+                                <div className="flex items-center gap-2"><Icon name="shield-check" size={20} className="text-cyan-600 dark:text-cyan-400" /><h1 className="text-lg font-black text-slate-800 dark:text-white tracking-widest italic font-mono">V.I.S.O.R.</h1></div>
                                 <div className="flex gap-3">
                                     <button onClick={toggleTheme} className="text-slate-400 hover:text-yellow-500 dark:hover:text-indigo-400 transition-colors"><Icon name={isNightMode ? "moon" : "sun"} size={20} /></button>
                                     <button onClick={() => setIsHeadsetConnected(!isHeadsetConnected)}><Icon name="headset" size={20} className={isHeadsetConnected ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-600"} /></button>
@@ -774,23 +757,34 @@
                                     <button onClick={() => setShowNotifModal(true)} className="relative"><Icon name="bell" size={20} className="text-slate-400 hover:text-slate-600 dark:hover:text-white" /><div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-950"></div></button>
                                 </div>
                             </div>
-                            <div className={`flex-1 relative z-10 w-full flex flex-col bg-gray-50 dark:bg-slate-950 transition-colors duration-300 ${activeTab === 'home' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+
+                            {/* Content Area */}
+                            <div className={`flex-1 relative z-10 w-full flex flex-col bg-gray-50 dark:bg-slate-950 transition-colors duration-300 overflow-hidden`}>
                                 {activeTab === 'home' && renderHome()}
                                 {activeTab === 'events' && renderEvents()}
                                 {activeTab === 'stats' && renderStats()}
                                 {activeTab === 'hud' && renderHudPage()}
                                 {activeTab === 'settings' && renderSettings()}
                             </div>
-                            <div className="flex-none bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-2 pb-6 border-t border-slate-200 dark:border-white/5 z-20 transition-colors duration-300">
+
+                            {/* Bottom Nav */}
+                            <div className="flex-none bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl py-2 pb-safe border-t border-slate-200 dark:border-white/5 z-50 transition-colors duration-300">
                                 <div className="flex justify-around items-end px-2">
                                     <NavButton iconName="monitor" label="HUD" isActive={activeTab === 'hud'} onClick={() => setActiveTab('hud')} />
                                     <NavButton iconName="video" label="事件" isActive={activeTab === 'events'} onClick={() => setActiveTab('events')} />
-                                    <NavButton iconName="shield" label="監控" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} isCenter={true} />
+                                    <button onClick={() => setActiveTab('home')} className="flex flex-col items-center justify-center gap-1 -mt-6">
+                                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-4 shadow-xl transition-all duration-300 ${activeTab === 'home' ? 'bg-cyan-600 dark:bg-cyan-500 border-white dark:border-slate-800 text-white transform scale-110' : 'bg-slate-200 dark:bg-slate-700 border-white dark:border-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                                            <Icon name="shield" size={28} strokeWidth={2.5} />
+                                        </div>
+                                        <span className={`text-[10px] font-bold ${activeTab === 'home' ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500'}`}>監控</span>
+                                    </button>
                                     <NavButton iconName="activity" label="分析" isActive={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
                                     <NavButton iconName="settings-2" label="設定" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                                 </div>
                             </div>
-                            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1.5 bg-slate-300 dark:bg-slate-600/50 rounded-full z-30 pointer-events-none mb-1"></div>
+                            
+                            {/* Home Indicator */}
+                            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1.5 bg-slate-300 dark:bg-slate-600/50 rounded-full z-40 pointer-events-none mb-1"></div>
                         </div>
                     </div>
                 </div>
@@ -798,7 +792,12 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // 修正：使用 ErrorBoundary 包裹整個 App，防止白屏
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
     </script>
 </body>
 </html>
