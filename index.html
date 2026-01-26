@@ -204,6 +204,42 @@
             } catch (e) { console.warn("Vibration failed", e); }
         };
 
+        const playWarningSound = () => {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                
+                // 簡單的 逼-逼-逼 警告音生成器
+                const playTone = (startTime) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    
+                    osc.type = 'sawtooth'; // 鋸齒波比較刺耳，適合做警告音
+                    osc.frequency.setValueAtTime(880, startTime); // A5 音高
+                    osc.frequency.linearRampToValueAtTime(600, startTime + 0.1); // 微幅下降音調增加急迫感
+                    
+                    gain.gain.setValueAtTime(0.1, startTime); // 音量
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1); // 快速衰減
+                    
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.15);
+                };
+
+                const now = ctx.currentTime;
+                playTone(now);        // 逼!
+                playTone(now + 0.2);  // 逼!
+                playTone(now + 0.4);  // 逼!
+                
+            } catch (e) {
+                console.error("Audio playback failed", e);
+            }
+        };
+
         const MOCK_SPEED_CAMERA_DB = [
             { id: 'mock_1', limit: 50, lat: 25.0335, lng: 121.5650, address: "信義路五段" },
             { id: 'mock_2', limit: 60, lat: 25.0410, lng: 121.5600, address: "忠孝東路" },
@@ -522,6 +558,7 @@
             const simulateSpeeding = () => { setGpsSpeed(120); setTimeout(() => setGpsSpeed(0), 3000); };
             
             const simulateBSD = (side) => {
+                playWarningSound();
                 if (side === 'left') {
                     setBsdLeft(true);
                     vibrate('bsd');
