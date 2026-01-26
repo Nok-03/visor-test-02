@@ -424,20 +424,44 @@
                 return () => navigator.geolocation.clearWatch(id);
             }, [geoOptions]);
 
+            // Auto-enable sensors on mount if possible
+            useEffect(() => {
+                const handleOrientation = (event) => { 
+                    if (event.gamma !== null) setRealTilt(Math.round(event.gamma)); 
+                };
+                
+                // Attempt to add listener directly (for Android/non-permission devices)
+                try {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    // We optimistically set permission to true if no error thrown immediately, 
+                    // though real check is receiving data.
+                    setHasSensorPermission(true); 
+                } catch (e) {
+                    console.log("Auto sensor init failed", e);
+                }
+
+                return () => { window.removeEventListener('deviceorientation', handleOrientation); };
+            }, []);
+
             const requestSensorPermission = async () => {
+                const handleOrientation = (event) => { if (event.gamma !== null) setRealTilt(Math.round(event.gamma)); };
+                
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     try {
                         const response = await DeviceOrientationEvent.requestPermission();
-                        if (response === 'granted') { setHasSensorPermission(true); window.addEventListener('deviceorientation', handleOrientation); } 
-                        else { alert('權限被拒絕'); }
+                        if (response === 'granted') { 
+                            setHasSensorPermission(true); 
+                            window.addEventListener('deviceorientation', handleOrientation); 
+                        } else { 
+                            alert('權限被拒絕'); 
+                        }
                     } catch (e) { console.error(e); }
                 } else {
+                    // Fallback for non-iOS 13+ devices
                     setHasSensorPermission(true);
                     window.addEventListener('deviceorientation', handleOrientation);
                 }
             };
-            const handleOrientation = (event) => { if (event.gamma !== null) setRealTilt(Math.round(event.gamma)); };
-            useEffect(() => { return () => { window.removeEventListener('deviceorientation', handleOrientation); }; }, []);
 
             // --- Logic ---
             const fetchSpeedCameraData = async () => {
@@ -496,6 +520,21 @@
 
             const simulateCrash = () => { setCrashCountdown(10); vibrate('heavy'); };
             const simulateSpeeding = () => { setGpsSpeed(120); setTimeout(() => setGpsSpeed(0), 3000); };
+            
+            const simulateBSD = (side) => {
+                if (side === 'left') {
+                    setBsdLeft(true);
+                    vibrate('bsd');
+                    setTimeout(() => setBsdLeft(false), 3000);
+                } else {
+                    setBsdRight(true);
+                    vibrate('bsd');
+                    setTimeout(() => setBsdRight(false), 3000);
+                }
+                // Switch to home tab to show the alert
+                setActiveTab('home');
+            };
+
             const handleTriggerSOS = () => { setCrashCountdown(null); vibrate([200, 100, 500]); navigator.vibrate(0); };
             
             useEffect(() => {
@@ -515,7 +554,7 @@
 
             const renderHome = () => {
                 const isSpeeding = nearestCamera && nearestCamera.distance < 0.3 && gpsSpeed > nearestCamera.limit;
-                const displayTilt = hasSensorPermission ? realTilt : 0;
+                const displayTilt = realTilt; // Always use real tilt now, permission handled in init
 
                 return (
                     <div className="h-full w-full flex flex-col p-4 gap-4 animate-fadeIn pb-24 overflow-y-auto no-scrollbar">
@@ -544,7 +583,10 @@
                             {(bsdLeft || bsdRight) && <div className="absolute inset-0 bg-red-500/10 animate-flash-border pointer-events-none z-0"></div>}
                             
                             <div className="absolute top-4 w-full flex justify-between px-6 z-10">
-                                <div className="text-left"><div className="text-xs text-slate-400 font-bold tracking-widest">TILT</div>{!hasSensorPermission && <button onClick={requestSensorPermission} className="text-[10px] text-cyan-500 underline">啟用</button>}</div>
+                                <div className="text-left"><div className="text-xs text-slate-400 font-bold tracking-widest">TILT</div>
+                                    {/* Only show button if sensor not yet active/permission needed (mostly for iOS) */}
+                                    {!hasSensorPermission && <button onClick={requestSensorPermission} className="text-[10px] text-cyan-500 underline">啟用</button>}
+                                </div>
                                 <div className="text-right"><div className="text-xs text-slate-400 font-bold tracking-widest">GPS</div></div>
                             </div>
 
@@ -717,6 +759,14 @@
                          <button onClick={simulateCrash} className="w-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 py-3 rounded-xl font-bold border border-red-200 dark:border-red-500/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-all flex items-center justify-center gap-2">
                             <Icon name="alert-triangle" size={18} /> 模擬摔車偵測
                         </button>
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <button onClick={() => simulateBSD('left')} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs">
+                                <Icon name="arrow-left-circle" size={16} /> 模擬左後方來車
+                            </button>
+                            <button onClick={() => simulateBSD('right')} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs">
+                                <Icon name="arrow-right-circle" size={16} /> 模擬右後方來車
+                            </button>
+                        </div>
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
