@@ -3,44 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <!-- 
-        設定 viewport 以適應移動裝置：
-        - width=device-width: 寬度隨裝置調整
-        - initial-scale=1.0: 初始縮放比例
-        - maximum-scale=1.0: 禁止使用者縮放
-        - user-scalable=no: 禁止使用者縮放 (為了 App 般的體驗)
-        - viewport-fit=cover: 讓內容延伸到瀏海屏區域
+        [Viewport 設定參數詳解]
+        - width=device-width: 網頁寬度直接等於裝置螢幕寬度。
+        - initial-scale=1.0: 初始縮放比例為 1:1 (無縮放)。
+        - maximum-scale=1.0: 限制最大縮放比例，防止使用者誤觸放大。
+        - user-scalable=no: 禁止使用者手動縮放 (雙指開合)，模擬原生 App 的操作體驗。
+        - viewport-fit=cover: 讓網頁內容延伸到全螢幕，包含 iPhone 的「瀏海」區域 (Notch)。
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- iOS PWA 相關設定：隱藏瀏覽器網址列，設為黑色狀態列 -->
+    <!-- 
+        [iOS PWA (Progressive Web App) 設定]
+        - apple-mobile-web-app-capable="yes": 允許以全螢幕模式執行 (隱藏 Safari 網址列)。
+        - apple-mobile-web-app-status-bar-style="black-translucent": 狀態列設為黑色半透明，讓內容透上去。
+    -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>V.I.S.O.R. 行車助理系統 MK-XX</title>
     
-    <!-- 引入 Tailwind CSS 框架 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // 設定 Tailwind CSS 的自訂主題配置
+        // [Tailwind CSS 設定檔]
         tailwind.config = {
-            darkMode: 'class', // 啟用基於 class 的深色模式切換 ('dark')
+            darkMode: 'class', // 啟用「暗黑模式」，透過在 HTML 標籤加上 class="dark" 來切換。
             theme: {
                 extend: {
                     colors: {
-                        slate: { 850: '#151e2e' }, // 自定義深色背景
-                        danger: { 600: '#dc2626', 900: '#7f1d1d' } // 自定義危險警示色
+                        // 自定義顏色參數 (Hex 色碼)
+                        slate: { 850: '#151e2e' }, // 特調的深藍灰色背景
+                        danger: { 600: '#dc2626', 900: '#7f1d1d' } // 警示用的亮紅與深紅
                     },
                     animation: {
-                        // 定義自訂動畫名稱與參數
-                        'urgent-pulse': 'urgentPulse 0.1s cubic-bezier(0.4, 0, 0.6, 1) infinite', // 急促脈衝
-                        'flash-border': 'flashBorder 0.2s ease-in-out infinite', // 邊框閃爍 (用於盲點偵測)
+                        // 自定義動畫參數：[動畫名稱] [持續時間] [緩動函數] [延遲] [次數]
+                        'urgent-pulse': 'urgentPulse 0.1s cubic-bezier(0.4, 0, 0.6, 1) infinite', // 0.1秒極速閃爍
+                        'flash-border': 'flashBorder 0.2s ease-in-out infinite', // 0.2秒邊框閃爍 (盲點偵測用)
                     },
                     keyframes: {
-                        // 定義動畫關鍵影格
+                        // 動畫關鍵影格設定 (0% 起始狀態 -> 100% 結束狀態)
                         urgentPulse: {
-                            '0%, 100%': { opacity: 1 },
-                            '50%': { opacity: .2 },
+                            '0%, 100%': { opacity: 1 }, // 完全不透明
+                            '50%': { opacity: .2 },     // 半透明
                         },
                         flashBorder: {
+                            // 邊框顏色變化：從實心紅 -> 透明
                             '0%, 100%': { borderColor: 'rgba(239, 68, 68, 1)', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
                             '50%': { borderColor: 'rgba(239, 68, 68, 0)', backgroundColor: 'transparent' },
                         }
@@ -50,27 +55,26 @@
         }
     </script>
     
-    <!-- 引入 React 和相關依賴庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-is/18.2.0/umd/react-is.production.min.js"></script>
-    <!-- Babel 用於在瀏覽器中編譯 JSX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    <!-- Lucide Icons 圖示庫 -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- 引入 SheetJS 用於匯出 Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        /* 全域 CSS 設定 */
+        /* [CSS 全域樣式] */
         html, body {
             height: 100%;
             width: 100%;
             margin: 0;
             padding: 0;
-            background-color: #000000; /* 預設全黑背景，避免載入時白屏 */
-            overflow: hidden; /* 禁止頁面整體捲動 */
-            -webkit-tap-highlight-color: transparent; /* 移除點擊時的高亮藍框 */
-            overscroll-behavior: none; /* 防止 iOS 瀏覽器邊緣的彈性回彈效果，增加 App 沉浸感 */
+            background-color: #000000; /* #000000 = 純黑色 */
+            overflow: hidden; /* 禁止捲動 */
+            -webkit-tap-highlight-color: transparent; /* 移除手機點擊時的藍色高亮區塊 */
+            overscroll-behavior: none; /* 禁止 iOS 瀏覽器滑到底部的彈性回彈 */
         }
 
         #root {
@@ -78,54 +82,54 @@
             width: 100%;
         }
         
-        /* 工具類：隱藏滾動條但保留滾動功能 (Chrome, Safari, Edge) */
+        /* [隱藏捲軸樣式] 
+           針對不同瀏覽器隱藏捲軸，但保留捲動功能 */
         .no-scrollbar::-webkit-scrollbar {
-            display: none;
+            display: none; /* Chrome, Safari, Edge */
         }
-        /* 工具類：隱藏滾動條 (IE, Firefox) */
         .no-scrollbar {
-            -ms-overflow-style: none;  /* IE and Edge */
+            -ms-overflow-style: none;  /* IE */
             scrollbar-width: none;  /* Firefox */
         }
         
-        /* 動畫：淡入效果 */
+        /* [動畫定義] */
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(10px); } /* 從透明且向下偏移 10px 開始 */
+            to { opacity: 1; transform: translateY(0); }      /* 到不透明且位置歸零 */
         }
-        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; } /* 持續 0.4秒 */
         
-        /* 動畫：SOS 按鈕的波紋擴散效果 */
         @keyframes sosPulse {
+            /* SOS 按鈕的發光波紋 */
             0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            50% { box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0); }
+            50% { box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0); } /* 擴散並變透明 */
         }
-        .animate-sos { animation: sosPulse 1.5s infinite; }
+        .animate-sos { animation: sosPulse 1.5s infinite; } /* 1.5秒循環一次 */
 
-        /* 動畫：全螢幕紅色閃爍 (用於撞擊偵測) */
         @keyframes flashRed {
+            /* 全螢幕紅色警示 */
             0%, 100% { background-color: rgba(220, 38, 38, 0.9); }
             50% { background-color: rgba(153, 27, 27, 0.95); }
         }
-        .animate-crash-alert { animation: flashRed 0.5s infinite; }
+        .animate-crash-alert { animation: flashRed 0.5s infinite; } /* 0.5秒極速閃爍 */
 
-        /* 特殊字型：類似復古電腦顯示 */
         .font-pixel {
             font-family: 'Courier New', Courier, monospace;
-            letter-spacing: 1px;
+            letter-spacing: 1px; /* 字元間距 1px */
         }
 
-        /* 針對 iPhone X+ 瀏海屏的安全區域設定，確保內容不被遮擋 */
+        /* [安全區域設定] 
+           env(safe-area-inset-...) 是瀏覽器提供的環境變數，對應手機瀏海或 Home Bar 的高度 */
         .safe-top { padding-top: max(20px, env(safe-area-inset-top)); }
         .safe-bottom { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
         
-        /* 自定義 Toggle 開關樣式 */
+        /* [Toggle 開關樣式] */
         .toggle-checkbox:checked {
             right: 0;
-            border-color: #06b6d4; /* Cyan-500 */
+            border-color: #06b6d4; /* 選中時的邊框色 (Cyan) */
         }
         .toggle-checkbox:checked + .toggle-label {
-            background-color: #06b6d4;
+            background-color: #06b6d4; /* 選中時的背景色 */
         }
     </style>
 </head>
@@ -136,11 +140,25 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // 工具函式：將字串轉為 PascalCase (例如 "arrow-right" -> "ArrowRight")，用於匹配 Lucide 圖示名稱
+        // [工具函式] 將字串轉為 PascalCase (首字母大寫)
+        // 例如：輸入 "arrow-right"，輸出 "ArrowRight" (用於 Lucide 圖示名稱)
         const toPascalCase = (str) => str.replace(/(^\w|-\w)/g, (text) => text.replace(/-/, '').toUpperCase());
 
-        // --- Error Boundary (錯誤邊界元件) ---
-        // 用途：攔截 React 渲染過程中的 JavaScript 錯誤，防止整個應用程式白屏崩潰
+        // ============================================================================
+        // [設定區] 請在此處填入您的設定
+        // ============================================================================
+        
+        // 請在此處填入您的 API Key (例如 Gemini API Key)
+        // 如果留空，系統將會使用模擬的「假回應」模式
+        const AI_API_KEY = ""; 
+        
+        // AI API 端點 (預設為 Gemini)
+        const AI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${AI_API_KEY}`;
+
+        // ============================================================================
+
+        // --- [Error Boundary] 錯誤攔截元件 ---
+        // 用途：如果下層元件發生 JavaScript 錯誤，顯示錯誤畫面而不是讓整個 App 白屏
         class ErrorBoundary extends React.Component {
             constructor(props) {
                 super(props);
@@ -153,7 +171,6 @@
             }
             render() {
                 if (this.state.hasError) {
-                    // 發生錯誤時顯示的備用 UI
                     return (
                         <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center overflow-auto safe-top safe-bottom">
                             <div className="text-5xl mb-4 animate-bounce">⚠️</div>
@@ -171,8 +188,11 @@
             }
         }
 
-        // --- Robust Icon Component (穩健的圖示元件) ---
-        // 用途：動態載入 Lucide 圖示，並包含重試機制，防止因網路延遲導致圖示庫未載入而報錯
+        // --- [Icon 元件] ---
+        // 參數：
+        // - name: 圖示名稱 (字串，如 "wifi")
+        // - size: 圖示大小 (像素，預設 24)
+        // - className: 額外的 CSS 類別
         const Icon = ({ name, size = 24, className = "" }) => {
             const containerRef = useRef(null);
             
@@ -181,17 +201,14 @@
                 const renderIcon = () => {
                     if (!mounted) return false;
                     try {
-                        // 檢查 Lucide 是否已載入
                         if (!window.lucide || !window.lucide.icons) return false;
 
                         const iconName = toPascalCase(name);
                         const iconNode = window.lucide.icons[iconName];
                         
-                        // 如果找不到圖示，靜默失敗但不崩潰
                         if (!iconNode) return true; 
                         
                         if (containerRef.current) {
-                            // 建立 SVG 元素並設定屬性
                             const svgElement = window.lucide.createElement(iconNode);
                             svgElement.setAttribute('width', size);
                             svgElement.setAttribute('height', size);
@@ -199,22 +216,21 @@
                             
                             containerRef.current.innerHTML = '';
                             containerRef.current.appendChild(svgElement);
-                            return true; // 渲染成功
+                            return true; 
                         }
-                        return false; // DOM ref 尚未準備好
+                        return false; 
                     } catch (e) {
                         console.warn(`Icon render failed for ${name}:`, e);
-                        return true; // 發生錯誤時停止重試，避免無限迴圈
+                        return true; 
                     }
                 };
 
-                // 首次嘗試渲染
+                // 輪詢機制：每 100ms 檢查一次圖示庫是否載入完成
                 if (!renderIcon()) {
-                    // 如果失敗（通常是腳本還沒載入），設定輪詢機制每 100ms 重試一次
                     const intervalId = setInterval(() => {
                         if (!mounted) { clearInterval(intervalId); return; }
                         if (renderIcon()) clearInterval(intervalId);
-                    }, 100);
+                    }, 100); // 100 毫秒
                     return () => { mounted = false; clearInterval(intervalId); };
                 }
                 return () => { mounted = false; };
@@ -223,21 +239,22 @@
             return <span ref={containerRef} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size }}></span>;
         };
 
-        // --- 震動回饋函式 ---
+        // --- [震動回饋函式] ---
+        // pattern 參數說明：[震動時長(ms), 暫停時長(ms), 震動時長(ms)...]
         const vibrate = (pattern) => {
             try {
-                // 檢查瀏覽器是否支援震動 API
                 if (navigator.vibrate) {
-                    if (pattern === 'heavy') navigator.vibrate([50, 30, 50, 30, 50, 30]); // 強烈震動 (如撞擊)
-                    else if (pattern === 'bsd') navigator.vibrate([100, 50, 100, 50, 100, 50, 100, 50, 100]); // 盲點偵測警示 (加長版：五連震)
-                    else if (pattern === 'speeding') navigator.vibrate([400]); // 超速長震
+                    if (pattern === 'heavy') navigator.vibrate([50, 30, 50, 30, 50, 30]); // 重震：短促強烈的三連震
+                    // 盲點偵測警示 (加長版)：五連震，頻率急促 (100ms震動, 50ms暫停)
+                    else if (pattern === 'bsd') navigator.vibrate([100, 50, 100, 50, 100, 50, 100, 50, 100]); 
+                    else if (pattern === 'speeding') navigator.vibrate([400]); // 超速：單次長震 400ms
                     else navigator.vibrate(pattern); // 自定義模式
                 }
             } catch (e) { console.warn("Vibration failed", e); }
         };
 
-        // --- 警示音效函式 (Web Audio API) ---
-        // 用途：即時生成高頻警示音，無需載入外部音檔
+        // --- [警示音效函式] (Web Audio API) ---
+        // 說明：使用瀏覽器內建音效合成器，不需下載 mp3 檔案
         const playWarningSound = () => {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -246,62 +263,69 @@
                 const ctx = new AudioContext();
                 
                 // 產生單一嗶聲的函式
+                // startTime: 開始播放的時間點 (秒)
                 const playTone = (startTime) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
+                    const osc = ctx.createOscillator(); // 振盪器 (發聲源)
+                    const gain = ctx.createGain();      // 增益節點 (音量控制)
                     
-                    osc.type = 'sawtooth'; // 使用鋸齒波，聲音較尖銳，適合做警告音
-                    osc.frequency.setValueAtTime(880, startTime); // 起始頻率 A5
-                    osc.frequency.linearRampToValueAtTime(600, startTime + 0.1); // 頻率微幅下降，增加急迫感
+                    osc.type = 'sawtooth'; // 波形設為 'sawtooth' (鋸齒波)，聲音較尖銳刺耳，適合警告
                     
-                    gain.gain.setValueAtTime(0.1, startTime); // 設定音量
-                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1); // 音量快速衰減
+                    // 設定頻率變化 (音高)
+                    osc.frequency.setValueAtTime(880, startTime); // 起始頻率 880Hz (高音 A5)
+                    osc.frequency.linearRampToValueAtTime(600, startTime + 0.1); // 0.1秒內降到 600Hz (做出 "啾" 的下墜音效)
                     
+                    // 設定音量變化
+                    gain.gain.setValueAtTime(0.1, startTime); // 起始音量 0.1 (避免爆音)
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1); // 0.1秒內快速衰減至靜音
+                    
+                    // 連接節點：振盪器 -> 音量 -> 輸出設備
                     osc.connect(gain);
                     gain.connect(ctx.destination);
                     
                     osc.start(startTime);
-                    osc.stop(startTime + 0.15); // 每個音持續 0.15秒
+                    osc.stop(startTime + 0.15); // 每個音持續 0.15 秒
                 };
 
                 const now = ctx.currentTime;
-                // 連續播放六次，延長警告音效
-                playTone(now);        
-                playTone(now + 0.2);  
-                playTone(now + 0.4);  
-                playTone(now + 0.6);  
-                playTone(now + 0.8);  
-                playTone(now + 1.0);  
+                // 連續播放六次，每次間隔 0.2 秒
+                playTone(now);        // 第1聲
+                playTone(now + 0.2);  // 第2聲
+                playTone(now + 0.4);  // 第3聲
+                playTone(now + 0.6);  // 第4聲
+                playTone(now + 0.8);  // 第5聲
+                playTone(now + 1.0);  // 第6聲
                 
             } catch (e) {
                 console.error("Audio playback failed", e);
             }
         };
 
-        // --- 模擬資料與常數 ---
+        // --- [模擬資料] ---
         const MOCK_SPEED_CAMERA_DB = [
             { id: 'mock_1', limit: 50, lat: 25.0335, lng: 121.5650, address: "信義路五段" },
             { id: 'mock_2', limit: 60, lat: 25.0410, lng: 121.5600, address: "忠孝東路" },
-            { id: 'mock_3', limit: 40, lat: 25.0290, lng: 121.5680, address: "松仁路" },
-            { id: 'mock_4', limit: 80, lat: 25.0380, lng: 121.5500, address: "市民大道" },
-            { id: 'mock_99', limit: 30, lat: 25.0345, lng: 121.5648, address: "測試用相機" } 
+            // ...更多模擬資料
         ];
 
+        // 政府開放資料平台 API (測速照相)
         const GOV_API_URL = "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/EA5E6FCD-B82D-43B7-A5CF-E9893253187E/resource/E5086C7F-A14C-4A23-8FFE-8D518923F9F1/download";
 
-        // 計算兩點經緯度距離 (Haversine Formula)
+        // --- [距離計算函式] ---
+        // 使用 Haversine 公式計算地球上兩點的距離
+        // 輸入：lat1, lon1 (點A經緯度), lat2, lon2 (點B經緯度)
+        // 輸出：距離 (單位：公里 km)
         const calculateDistance = (lat1, lon1, lat2, lon2) => {
-            const R = 6371; // 地球半徑 (km)
-            const dLat = (lat2 - lat1) * (Math.PI / 180);
-            const dLon = (lon2 - lon1) * (Math.PI / 180);
+            const R = 6371; // 地球半徑 (6371 公里)
+            const dLat = (lat2 - lat1) * (Math.PI / 180); // 緯度差 (轉弧度)
+            const dLon = (lon2 - lon1) * (Math.PI / 180); // 經度差 (轉弧度)
             const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; // 回傳距離 (km)
+            return R * c; 
         };
 
-        // --- UI 元件 ---
+        // --- [React 元件定義] ---
 
-        // 開關切換元件
+        // Toggle 開關
         const Toggle = ({ label, checked, onChange }) => (
             <div className="flex justify-between items-center py-3 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-700 dark:text-slate-300 font-medium">{label}</span>
@@ -312,17 +336,19 @@
             </div>
         );
 
-        // Wi-Fi 設定彈窗
+        // Wifi 設定視窗
         const WifiModal = ({ onClose, onConnect, currentSsid }) => {
             const networks = [{ ssid: "V.I.S.O.R. Core AP", signal: 100, secure: true }, { ssid: "TPE-Free", signal: 70, secure: false }];
             return (
                 <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 w-full max-w-sm rounded-2xl p-4 shadow-2xl relative z-10">
+                        {/* Modal 標題區 */}
                         <div className="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
                             <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2"><Icon name="wifi" size={20} className="text-cyan-600 dark:text-cyan-400" /> Wi-Fi</h3>
                             <button onClick={onClose}><Icon name="x" size={20} className="text-slate-500 dark:text-slate-400" /></button>
                         </div>
+                        {/* 網路列表 */}
                         <div className="space-y-2">
                             {networks.map((net, idx) => (
                                 <button key={idx} onClick={() => onConnect(net.ssid)} className={`w-full p-3 rounded-xl flex justify-between items-center transition-all ${currentSsid === net.ssid ? 'bg-cyan-100 dark:bg-cyan-900/30 border border-cyan-500/50' : 'bg-slate-50 dark:bg-slate-800 border border-transparent hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
@@ -336,11 +362,13 @@
             );
         };
 
-        // 通知中心彈窗
+        // 通知中心視窗
         const NotificationModal = ({ onClose }) => {
             const [tab, setTab] = useState('speed');
+            // 模擬通知資料
             const speedLogs = [{ time: "10:14", speed: 85, limit: 60, loc: "市民大道高架" }];
             const connLogs = [{ time: "10:00", event: "V.I.S.O.R. Core 已連線", status: "ok" }];
+            
             return (
                 <div className="absolute inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 animate-fadeIn">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
@@ -349,6 +377,7 @@
                             <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2"><Icon name="bell" size={20} className="text-yellow-500 dark:text-yellow-400" /> 通知</h3>
                             <button onClick={onClose}><Icon name="x" size={20} className="text-slate-500 dark:text-slate-400" /></button>
                         </div>
+                        {/* 標籤切換 */}
                         <div className="flex p-2 gap-2 bg-slate-50 dark:bg-slate-950/50">
                             <button onClick={() => setTab('speed')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'speed' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>超速紀錄</button>
                             <button onClick={() => setTab('log')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'log' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>連線日誌</button>
@@ -371,7 +400,8 @@
             );
         };
 
-        // 撞擊偵測全螢幕警示
+        // 撞擊偵測全螢幕警告
+        // 參數: countdown (倒數秒數)
         const CrashAlertOverlay = ({ countdown, onCancel, onConfirm }) => {
             return (
                 <div className="absolute inset-0 z-[100] animate-crash-alert flex flex-col items-center justify-center p-6 text-white safe-top safe-bottom">
@@ -389,7 +419,7 @@
             );
         };
 
-        // SOS 緊急求救長按按鈕
+        // SOS 長按按鈕
         const SOSButton = ({ onTrigger }) => {
             const [activating, setActivating] = useState(false);
             const [countdown, setCountdown] = useState(3);
@@ -397,8 +427,13 @@
             // 處理長按倒數邏輯
             useEffect(() => {
                 let timer;
-                if (activating && countdown > 0) timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-                else if (countdown === 0) { onTrigger(); setActivating(false); setCountdown(3); vibrate([200, 100, 200, 100]); }
+                if (activating && countdown > 0) timer = setTimeout(() => setCountdown(c => c - 1), 1000); // 每秒減1
+                else if (countdown === 0) { 
+                    onTrigger(); // 倒數結束觸發 SOS
+                    setActivating(false); 
+                    setCountdown(3); 
+                    vibrate([200, 100, 200, 100]); // 觸發成功震動
+                }
                 return () => clearTimeout(timer);
             }, [activating, countdown, onTrigger]);
             
@@ -414,17 +449,17 @@
             );
         };
 
-        // HUD 預覽元件
+        // HUD 預覽畫面 (Dashboard 頂部的縮小版)
         const HUDPreview = ({ options, alertInfo, currentSpeed }) => {
             const safeOptions = Array.isArray(options) ? options : [];
             const isEnabled = (id) => safeOptions.find(o => o.id === id)?.enabled;
-            const showAlert = alertInfo && alertInfo.distance < 0.3;
-            // 顯示當前速度，若速度功能未啟用則顯示 '--'
+            const showAlert = alertInfo && alertInfo.distance < 0.3; // 300公尺內顯示警示
             const displaySpeed = isEnabled('speed') ? (currentSpeed || 0) : '--';
             
             return (
                 <div className={`w-full bg-black border-4 rounded-lg p-2 relative mb-6 transition-all duration-300 ${showAlert ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'border-slate-300 dark:border-slate-700 shadow-lg dark:shadow-[0_0_15px_rgba(34,211,238,0.2)]'}`}>
                     <div className="aspect-[2/1] w-full bg-black relative overflow-hidden font-pixel flex flex-col justify-between p-2">
+                        {/* ... HUD 內容佈局 ... */}
                         <div className="flex justify-end items-center h-6">
                             {isEnabled('time') && <span className="text-white text-[10px] leading-none opacity-80">10:42</span>}
                         </div>
@@ -444,9 +479,10 @@
             );
         };
 
-        // 底部導航按鈕元件
+        // 底部導航按鈕
         const NavButton = ({ iconName, label, isActive, onClick, isCenter = false }) => (
             <button onClick={onClick} className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 ${isCenter ? 'mb-4' : 'p-2 w-16 group'}`}>
+                {/* 如果 isCenter 為真，顯示中間大按鈕樣式，否則顯示一般按鈕 */}
                 <div className={`transition-all duration-300 ${isActive ? (isCenter ? 'scale-110' : '-translate-y-1') : ''} ${isCenter ? 'bg-cyan-600 dark:bg-cyan-900/80 w-14 h-14 flex items-center justify-center rounded-full border-2 border-cyan-400 shadow-lg dark:shadow-[0_0_15px_rgba(34,211,238,0.3)]' : ''}`}>
                     <Icon name={iconName} size={isCenter ? 28 : 24} className={isCenter ? 'text-white dark:text-cyan-400' : (isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300')} strokeWidth={isActive || isCenter ? 2.5 : 2} />
                 </div>
@@ -454,32 +490,50 @@
             </button>
         );
 
-        // --- 主應用程式 App 元件 ---
+        // --- [主程式進入點 App] ---
         const App = () => {
-            // --- 狀態管理 ---
-            const [isNightMode, setIsNightMode] = useState(true); // 深色模式
-            const [activeTab, setActiveTab] = useState('home'); // 當前分頁
-            const [isSentryMode, setIsSentryMode] = useState(false); // 哨兵模式開關
-            const [gpsSpeed, setGpsSpeed] = useState(0); // 當前 GPS 速度
+            // --- React State 定義 (狀態變數) ---
+            const [isNightMode, setIsNightMode] = useState(true); // 介面深色模式 (true/false)
+            const [activeTab, setActiveTab] = useState('home'); // 當前顯示的分頁 ('home', 'events', 'stats', 'hud', 'settings')
+            const [isSentryMode, setIsSentryMode] = useState(false); // 哨兵監控模式 (true/false)
+            const [gpsSpeed, setGpsSpeed] = useState(0); // 即時 GPS 速度 (km/h)
             
-            const [isConnected, setIsConnected] = useState(false); // 硬體連線狀態
-            const [isHeadsetConnected, setIsHeadsetConnected] = useState(false); // 耳機連線狀態
-            const [currentSsid, setCurrentSsid] = useState(""); // 目前 WiFi SSID
+            const [isConnected, setIsConnected] = useState(false); // 系統連線狀態
+            const [isHeadsetConnected, setIsHeadsetConnected] = useState(false); // 藍牙耳機連線狀態
+            const [currentSsid, setCurrentSsid] = useState(""); // 當前 WiFi 名稱
 
-            const [location, setLocation] = useState({ lat: 25.033964, lng: 121.564468 }); // 當前經緯度
-            const [isLocating, setIsLocating] = useState(false); // 定位中狀態
-            const [showWifiModal, setShowWifiModal] = useState(false); // 顯示 WiFi 彈窗
-            const [showNotifModal, setShowNotifModal] = useState(false); // 顯示通知彈窗
-            const [crashCountdown, setCrashCountdown] = useState(null); // 撞擊倒數計時
+            const [location, setLocation] = useState({ lat: 25.033964, lng: 121.564468 }); // 當前經緯度 (預設台北101)
+            const [isLocating, setIsLocating] = useState(false); // 是否正在定位中
+            const [showWifiModal, setShowWifiModal] = useState(false); // 控制 WiFi 彈窗顯示
+            const [showNotifModal, setShowNotifModal] = useState(false); // 控制通知彈窗顯示
+            const [crashCountdown, setCrashCountdown] = useState(null); // 撞擊倒數計時器 (數字或 null)
             const [cameraDB, setCameraDB] = useState(MOCK_SPEED_CAMERA_DB); // 測速照相資料庫
-            const [nearestCamera, setNearestCamera] = useState(null); // 最近的測速照相
+            const [nearestCamera, setNearestCamera] = useState(null); // 距離最近的測速點
             
-            const [bsdLeft, setBsdLeft] = useState(false); // 左側盲點警示狀態
-            const [bsdRight, setBsdRight] = useState(false); // 右側盲點警示狀態
-            const [realTilt, setRealTilt] = useState(0); // 裝置傾斜角度
-            const [hasSensorPermission, setHasSensorPermission] = useState(false); // 傳感器權限狀態
+            const [bsdLeft, setBsdLeft] = useState(false); // 左盲點警示狀態 (控制紅色邊框)
+            const [bsdRight, setBsdRight] = useState(false); // 右盲點警示狀態 (控制紅色邊框)
+            const [realTilt, setRealTilt] = useState(0); // 即時傾角 (Gamma值)
+            const [hasSensorPermission, setHasSensorPermission] = useState(false); // 陀螺儀權限
 
-            // --- HUD 設定選項 ---
+            // --- 新增：騎乘數據狀態 ---
+            const [rideStats, setRideStats] = useState({
+                distance: 0, // 總里程 (km)
+                duration: 0, // 騎乘時間 (秒)
+                maxSpeed: 0, // 最高速度 (km/h)
+                avgSpeed: 0  // 平均速度 (km/h)
+            });
+            const startTimeRef = useRef(Date.now()); // 記錄程式開始時間
+            const prevLocationRef = useRef(null);    // 記錄上一次的 GPS 位置 (用於計算距離)
+
+            // --- AI 聊天相關狀態 ---
+            const [isChatOpen, setIsChatOpen] = useState(false); // 控制聊天視窗開啟
+            const [chatInput, setChatInput] = useState(""); // 聊天輸入框內容
+            const [chatMessages, setChatMessages] = useState([
+                { role: 'system', text: '你好！我是 V.I.S.O.R. 智慧助理。有什麼我可以幫你的嗎？', timestamp: new Date().toISOString() } // 預設歡迎訊息 (含時間戳記)
+            ]);
+            const [isAiThinking, setIsAiThinking] = useState(false); // AI 思考中狀態
+
+            // HUD 設定選項狀態
             const [hudOptions, setHudOptions] = useState([
                 { id: 'speed', label: '行駛速度', enabled: true },
                 { id: 'nav', label: '導航指示', enabled: true },
@@ -489,39 +543,139 @@
                 { id: 'music', label: '音樂控制', enabled: false },
             ]);
 
-            const lastSpeedAlertTime = useRef(0); // 上次超速警示時間
-            const lastAlertCameraId = useRef(null); // 上次警示的相機 ID
+            const lastSpeedAlertTime = useRef(0); // 記錄上次超速警示的 timestamp，防止連續警示
+            const lastAlertCameraId = useRef(null); // 記錄上次警示的相機 ID
             
-            // Geolocation API 設定
+            // GPS 選項
             const geoOptions = useMemo(() => ({
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
+                enableHighAccuracy: true, // 開啟高精確度模式
+                timeout: 5000,            // 超時時間 5秒
+                maximumAge: 0             // 不使用快取位置
             }), []);
 
-            // --- 1. GPS 監聽 Effect ---
+            // --- [工具函式] 格式化秒數為 HH:MM:SS ---
+            const formatTime = (seconds) => {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+
+            // --- [功能] 匯出 Excel 函式 ---
+            const exportToExcel = () => {
+                if (!window.XLSX) {
+                    alert("匯出元件尚未載入，請稍後再試。");
+                    return;
+                }
+
+                // 1. 準備騎乘數據
+                const rideData = [
+                    ["項目", "數值", "單位"],
+                    ["總里程", rideStats.distance.toFixed(2), "km"],
+                    ["騎乘時間", formatTime(rideStats.duration), "HH:MM:SS"],
+                    ["平均速度", rideStats.avgSpeed, "km/h"],
+                    ["最高速度", rideStats.maxSpeed, "km/h"],
+                    ["紀錄時間", new Date().toLocaleString(), ""]
+                ];
+
+                // 2. 準備對話數據
+                const chatData = [
+                    ["時間", "發送者", "訊息內容"],
+                    ...chatMessages.map(msg => [
+                        msg.timestamp ? new Date(msg.timestamp).toLocaleString() : "-",
+                        msg.role === 'user' ? "使用者" : "AI 助理",
+                        msg.text
+                    ])
+                ];
+
+                // 3. 建立 Workbook
+                const wb = XLSX.utils.book_new();
+                
+                // 4. 建立 Worksheets
+                const wsRide = XLSX.utils.aoa_to_sheet(rideData);
+                const wsChat = XLSX.utils.aoa_to_sheet(chatData);
+
+                // 5. 加入 Sheets
+                XLSX.utils.book_append_sheet(wb, wsRide, "騎乘數據");
+                XLSX.utils.book_append_sheet(wb, wsChat, "對話紀錄");
+
+                // 6. 下載檔案
+                XLSX.writeFile(wb, `VISOR_Data_${new Date().toISOString().slice(0,10)}.xlsx`);
+            };
+
+            // --- [Effect] 啟動 GPS 監聽 & 里程計算 ---
             useEffect(() => {
                 if (!navigator.geolocation) return;
+                
                 const id = navigator.geolocation.watchPosition(
                     (pos) => {
-                        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                        if (pos.coords.speed !== null) {
-                            setGpsSpeed(Math.round(pos.coords.speed * 3.6)); // 轉換 m/s 為 km/h
+                        const newLat = pos.coords.latitude;
+                        const newLng = pos.coords.longitude;
+                        const newSpeed = pos.coords.speed !== null ? Math.round(pos.coords.speed * 3.6) : 0; // m/s -> km/h
+
+                        setLocation({ lat: newLat, lng: newLng });
+                        setGpsSpeed(newSpeed);
+
+                        // 計算累積里程
+                        if (prevLocationRef.current) {
+                            const dist = calculateDistance(
+                                prevLocationRef.current.lat, 
+                                prevLocationRef.current.lng, 
+                                newLat, 
+                                newLng
+                            );
+                            
+                            // GPS 飄移過濾：只有當移動距離大於 5公尺 且 小於 500公尺 (避免瞬間跳動) 才列入計算
+                            if (dist > 0.005 && dist < 0.5) { 
+                                setRideStats(prev => {
+                                    const newDistance = prev.distance + dist;
+                                    return {
+                                        ...prev,
+                                        distance: newDistance,
+                                        maxSpeed: Math.max(prev.maxSpeed, newSpeed)
+                                    };
+                                });
+                            }
                         }
+                        // 更新上一次位置
+                        prevLocationRef.current = { lat: newLat, lng: newLng };
                     },
                     (err) => console.warn(err),
                     geoOptions
                 );
-                return () => navigator.geolocation.clearWatch(id);
+                return () => navigator.geolocation.clearWatch(id); // 元件卸載時清除監聽
             }, [geoOptions]);
 
-            // --- 2. 裝置姿態傳感器監聽 (自動啟用) ---
+            // --- [Effect] 騎乘計時器 ---
+            useEffect(() => {
+                // 每秒更新一次騎乘時間與平均速度
+                const timer = setInterval(() => {
+                    const now = Date.now();
+                    const diffSeconds = Math.floor((now - startTimeRef.current) / 1000);
+                    
+                    setRideStats(prev => {
+                        // 計算平均速度：總里程 (km) / 總時間 (h)
+                        const hours = diffSeconds / 3600;
+                        // 避免除以零
+                        const newAvg = hours > 0 ? Math.round((prev.distance / hours) * 10) / 10 : 0;
+                        
+                        return {
+                            ...prev,
+                            duration: diffSeconds,
+                            avgSpeed: newAvg
+                        };
+                    });
+                }, 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            // --- [Effect] 啟動陀螺儀 (傾角) ---
             useEffect(() => {
                 const handleOrientation = (event) => { 
-                    if (event.gamma !== null) setRealTilt(Math.round(event.gamma)); // 取得左右傾斜 (Gamma)
+                    if (event.gamma !== null) setRealTilt(Math.round(event.gamma)); // Gamma 代表左右傾斜
                 };
                 
-                // 嘗試直接添加監聽器 (適用於 Android/無需權限的裝置)
+                // 嘗試直接監聽 (Android 通常不需要權限)
                 try {
                     window.addEventListener('deviceorientation', handleOrientation);
                     setHasSensorPermission(true); 
@@ -532,7 +686,7 @@
                 return () => { window.removeEventListener('deviceorientation', handleOrientation); };
             }, []);
 
-            // 手動請求傳感器權限 (針對 iOS 13+)
+            // iOS 13+ 需要手動請求權限
             const requestSensorPermission = async () => {
                 const handleOrientation = (event) => { if (event.gamma !== null) setRealTilt(Math.round(event.gamma)); };
                 
@@ -552,14 +706,13 @@
                 }
             };
 
-            // --- 3. 資料獲取與邏輯計算 ---
-            
-            // 獲取測速照相資料
+            // --- [邏輯] 獲取外部測速照相資料 ---
             const fetchSpeedCameraData = async () => {
                 try {
                     const response = await fetch(GOV_API_URL, { method: 'GET' });
                     if (!response.ok) throw new Error("Network error");
                     const data = await response.json();
+                    // 資料格式轉換與過濾
                     const formattedData = data.result?.records?.map((item, index) => ({
                         id: `gov_${index}`,
                         limit: parseInt(item.limit || item.SpeedLimit || 50), 
@@ -572,33 +725,36 @@
             };
             useEffect(() => { fetchSpeedCameraData(); }, []);
 
-            // 計算最近測速照相
+            // --- [邏輯] 計算最近相機與超速判定 ---
             useEffect(() => {
                 if (!location || !cameraDB) return;
+                // 先過濾出附近的相機 (經緯度差 < 0.05，約 5km 範圍) 以減少計算量
                 const nearbyCameras = cameraDB.filter(cam => Math.abs(cam.lat - location.lat) < 0.05 && Math.abs(cam.lng - location.lng) < 0.05);
                 let minDistance = Infinity;
                 let closest = null;
+                
                 nearbyCameras.forEach(cam => {
                     const dist = calculateDistance(location.lat, location.lng, cam.lat, cam.lng);
                     if (dist < minDistance) { minDistance = dist; closest = { ...cam, distance: dist }; }
                 });
-                if (closest && closest.distance < 1.0) { 
+                
+                if (closest && closest.distance < 1.0) { // 1公里內才顯示
                     setNearestCamera(closest);
-                    // 進入 300m 警戒範圍時震動提示
+                    // 進入 0.3km (300公尺) 範圍且更換相機時震動提示
                     if (closest.distance < 0.3 && lastAlertCameraId.current !== closest.id) { vibrate([200, 100, 500]); lastAlertCameraId.current = closest.id; }
                 } else { setNearestCamera(null); lastAlertCameraId.current = null; }
             }, [location, cameraDB]);
 
-            // 超速警示邏輯
+            // 超速即時警示
             useEffect(() => {
                 if (nearestCamera && nearestCamera.distance < 0.3 && gpsSpeed > nearestCamera.limit) {
                     const now = Date.now();
-                    // 避免警示太頻繁，設定 2 秒冷卻
+                    // 每 2 秒震動一次
                     if (now - lastSpeedAlertTime.current > 2000) { vibrate('speeding'); lastSpeedAlertTime.current = now; }
                 }
             }, [gpsSpeed, nearestCamera]);
 
-            // --- 4. 操作處理函式 ---
+            // --- [操作] 按鈕事件處理 ---
 
             const handleLocate = (isManual = false) => {
                 if (!navigator.geolocation) { if (isManual) alert("您的裝置或瀏覽器不支援地理定位功能。"); return; }
@@ -618,30 +774,29 @@
             const simulateCrash = () => { setCrashCountdown(10); vibrate('heavy'); };
             const simulateSpeeding = () => { setGpsSpeed(120); setTimeout(() => setGpsSpeed(0), 3000); };
             
-            // 模擬盲點偵測警示 (包含音效與震動)
+            // 模擬盲點警示 (觸發音效 + 震動 + UI 閃爍)
             const simulateBSD = (side) => {
-                playWarningSound(); // 播放警示音
+                playWarningSound(); // 呼叫音效函式
                 if (side === 'left') {
                     setBsdLeft(true);
-                    vibrate('bsd'); // 觸發震動
+                    vibrate('bsd'); 
                     setTimeout(() => setBsdLeft(false), 3000); // 3秒後自動關閉
                 } else {
                     setBsdRight(true);
                     vibrate('bsd');
                     setTimeout(() => setBsdRight(false), 3000);
                 }
-                // 切換回主畫面以便觀看效果
-                setActiveTab('home');
+                setActiveTab('home'); // 切換至首頁觀看效果
             };
 
             const handleTriggerSOS = () => { setCrashCountdown(null); vibrate([200, 100, 500]); navigator.vibrate(0); };
             
-            // 處理撞擊倒數
+            // 處理撞擊倒數計時器
             useEffect(() => {
                 let timer;
                 if (crashCountdown !== null && crashCountdown > 0) {
                     timer = setTimeout(() => setCrashCountdown(c => c - 1), 1000);
-                    if (crashCountdown % 2 === 0) vibrate('heavy');
+                    if (crashCountdown % 2 === 0) vibrate('heavy'); // 每2秒震動一次
                 } else if (crashCountdown === 0) { setCrashCountdown(null); handleTriggerSOS(); }
                 return () => clearTimeout(timer);
             }, [crashCountdown]);
@@ -650,16 +805,64 @@
             const handleWifiConnect = (ssid) => { if (ssid === "V.I.S.O.R. Core AP") { setIsConnected(true); setCurrentSsid(ssid); } else { setIsConnected(false); setCurrentSsid(ssid); } setShowWifiModal(false); };
             const toggleTheme = () => setIsNightMode(!isNightMode);
 
-            // --- 5. 頁面渲染函式 ---
+            // --- [AI 聊天邏輯] ---
+            const handleSendAiMessage = async () => {
+                if (!chatInput.trim()) return;
 
-            // 主控台 (Dashboard) 渲染
+                const userMsg = { role: 'user', text: chatInput, timestamp: new Date().toISOString() };
+                setChatMessages(prev => [...prev, userMsg]);
+                setChatInput("");
+                setIsAiThinking(true);
+
+                // 如果未設定 API Key，使用模擬回應
+                if (!AI_API_KEY) {
+                    setTimeout(() => {
+                        const mockResponses = [
+                            "系統偵測到前方路況良好，建議保持當前車速。",
+                            "已為您開啟省電模式。",
+                            "目前所在位置：信義區。天氣：晴朗。",
+                            "別擔心，V.I.S.O.R. 隨時為您監控後方車流。",
+                            "請記得開啟藍牙耳機以獲得最佳語音體驗。"
+                        ];
+                        const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+                        setChatMessages(prev => [...prev, { role: 'system', text: randomResponse, timestamp: new Date().toISOString() }]);
+                        setIsAiThinking(false);
+                    }, 1500);
+                    return;
+                }
+
+                // 使用 API Key 發送請求 (Gemini 範例)
+                try {
+                    const response = await fetch(AI_API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: chatInput }] }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "抱歉，我無法理解您的請求。";
+                    
+                    setChatMessages(prev => [...prev, { role: 'system', text: aiText, timestamp: new Date().toISOString() }]);
+                } catch (error) {
+                    console.error("AI Error:", error);
+                    setChatMessages(prev => [...prev, { role: 'system', text: "連線錯誤，無法連接至 AI 伺服器。", timestamp: new Date().toISOString() }]);
+                } finally {
+                    setIsAiThinking(false);
+                }
+            };
+
+            // --- [頁面渲染 Render Functions] ---
+
+            // 1. 首頁 (Dashboard)
             const renderHome = () => {
                 const isSpeeding = nearestCamera && nearestCamera.distance < 0.3 && gpsSpeed > nearestCamera.limit;
                 const displayTilt = realTilt; 
 
                 return (
                     <div className="h-full w-full flex flex-col p-4 gap-4 animate-fadeIn pb-24 overflow-y-auto no-scrollbar">
-                        {/* 地圖區塊 */}
+                        {/* 頂部地圖 */}
                         <div className="h-48 w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden relative shrink-0 shadow-lg">
                             <iframe title="Google Maps" width="100%" height="100%" frameBorder="0" style={{border:0}} className="opacity-90" src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=16&output=embed&ui=min`} allowFullScreen></iframe>
                             <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
@@ -676,14 +879,14 @@
                             )}
                         </div>
 
-                        {/* 速度與傾角儀表板 */}
+                        {/* 中央儀表板 (速度 & 傾角) */}
                         <div className={`flex-1 min-h-[250px] bg-white dark:bg-slate-900 rounded-2xl border-4 relative flex flex-col items-center justify-center shadow-lg transition-all duration-100 overflow-hidden
                             ${bsdLeft ? 'border-l-red-500' : 'border-l-slate-200 dark:border-l-slate-700'} 
                             ${bsdRight ? 'border-r-red-500' : 'border-r-slate-200 dark:border-r-slate-700'}
                             ${(bsdLeft || bsdRight) ? 'border-b-red-500' : 'border-b-slate-200 dark:border-b-slate-700'}
                              border-t-slate-200 dark:border-t-slate-700
                         `}>
-                            {/* 盲點警示紅光閃爍層 */}
+                            {/* 盲點警示紅光遮罩 (絕對定位覆蓋全元件) */}
                             {(bsdLeft || bsdRight) && <div className="absolute inset-0 bg-red-500/10 animate-flash-border pointer-events-none z-0"></div>}
                             
                             <div className="absolute top-4 w-full flex justify-between px-6 z-10">
@@ -693,6 +896,7 @@
                                 <div className="text-right"><div className="text-xs text-slate-400 font-bold tracking-widest">GPS</div></div>
                             </div>
 
+                            {/* 速度顯示 */}
                             <div className="flex flex-col items-center z-10 mt-2">
                                 <div className={`text-9xl font-black font-mono tracking-tighter leading-none transition-colors duration-200 ${isSpeeding ? 'text-red-600 animate-pulse' : 'text-slate-800 dark:text-white'}`}>
                                     {gpsSpeed}
@@ -704,17 +908,19 @@
                             <div className="absolute bottom-16 w-full px-8 flex justify-center z-10">
                                 <div className="relative w-full max-w-[200px] h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                     <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-400 -translate-x-1/2 z-20"></div>
+                                    {/* 藍色動態條：寬度根據傾角絕對值，位置根據正負值 */}
                                     <div className="absolute top-0 bottom-0 bg-cyan-500 transition-all duration-100 ease-linear" style={{left: '50%', width: `${Math.abs(displayTilt) * 2}%`, transform: `translateX(${displayTilt < 0 ? '-100%' : '0'})`}}></div>
                                 </div>
                             </div>
 
-                            {/* 手動測試按鈕 (隱藏/開發用) */}
+                            {/* 測試按鈕區域 */}
                             <div className="absolute bottom-2 w-full flex justify-between px-4 z-20 opacity-30 hover:opacity-100 transition-opacity">
                                 <button onClick={() => toggleBSD('left')} className="p-2 bg-slate-800/50 rounded-lg text-[10px] text-white">L</button>
                                 <button onClick={() => toggleBSD('right')} className="p-2 bg-slate-800/50 rounded-lg text-[10px] text-white">R</button>
                             </div>
                         </div>
 
+                        {/* SOS 底部按鈕 */}
                         <div className="shrink-0">
                             <SOSButton onTrigger={handleTriggerSOS} />
                         </div>
@@ -722,7 +928,7 @@
                 );
             };
 
-            // 事件列表頁面
+            // 2. 事件列表頁
             const renderEvents = () => {
                 const events = [
                     { id: 1, type: 'sentinel', title: '哨兵模式觸發', time: '10:42 AM', loc: '光華商場停車場', urgent: false },
@@ -763,47 +969,49 @@
                 );
             };
 
-            // 騎乘分析頁面
+            // 3. 數據分析頁 (已更新為真實數據)
             const renderStats = () => (
                 <div className="h-full w-full p-4 space-y-6 animate-fadeIn pb-32 overflow-y-auto no-scrollbar">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-white">騎乘分析</h2>
                     
-                    {/* 使用 CSS 繪製的簡易長條圖 */}
+                    {/* 主要里程卡片 (顯示即時累積里程) */}
                     <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                         <div className="flex justify-between items-end mb-4">
                             <div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400">本週里程</div>
-                                <div className="text-2xl font-black text-slate-900 dark:text-white font-mono">142<span className="text-sm ml-1 text-slate-500">km</span></div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">本次里程</div>
+                                {/* 顯示計算後的累積里程，取小數點後 1 位 */}
+                                <div className="text-2xl font-black text-slate-900 dark:text-white font-mono">{rideStats.distance.toFixed(1)}<span className="text-sm ml-1 text-slate-500">km</span></div>
                             </div>
                             <div className="text-green-500 text-xs font-bold flex items-center gap-1">
-                                <Icon name="trending-up" size={14} /> +12%
+                                <Icon name="activity" size={14} /> 記錄中
                             </div>
                         </div>
+                        {/* 模擬圖表 (視覺裝飾) */}
                         <div className="h-32 flex items-end justify-between gap-2 px-2">
                             {[40, 65, 30, 80, 50, 90, 45].map((h, i) => (
                                 <div key={i} className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-sm relative group">
                                     <div className="absolute bottom-0 left-0 right-0 bg-cyan-500 dark:bg-cyan-600 rounded-t-sm transition-all duration-500 hover:bg-cyan-400" style={{height: `${h}%`}}></div>
-                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-400">
-                                        {['M','T','W','T','F','S','S'][i]}
-                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
+                        {/* 騎乘時間卡片 (顯示即時時間) */}
                         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                             <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
                                 <Icon name="clock" size={14} /> 騎乘時間
                             </div>
-                            <div className="text-xl font-black text-slate-800 dark:text-slate-200">12<span className="text-sm mx-1">h</span>30<span className="text-sm ml-1">m</span></div>
+                            <div className="text-xl font-black text-slate-800 dark:text-slate-200 font-mono">{formatTime(rideStats.duration)}</div>
                         </div>
+                        {/* 平均速度卡片 (顯示即時計算均速) */}
                         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                             <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
                                 <Icon name="zap" size={14} /> 平均速度
                             </div>
-                            <div className="text-xl font-black text-slate-800 dark:text-slate-200">42<span className="text-sm ml-1">km/h</span></div>
+                            <div className="text-xl font-black text-slate-800 dark:text-slate-200 font-mono">{rideStats.avgSpeed}<span className="text-sm ml-1 text-slate-500 font-sans">km/h</span></div>
                         </div>
+                        {/* 電量卡片 (保持模擬，因 Web Battery API 支援度不佳) */}
                         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm col-span-2">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
@@ -819,7 +1027,7 @@
                 </div>
             );
 
-            // HUD 設定頁面
+            // 4. HUD 設定頁
             const renderHudPage = () => {
                 const toggleHudOption = (id, val) => {
                     setHudOptions(prev => prev.map(opt => opt.id === id ? { ...opt, enabled: val } : opt));
@@ -831,9 +1039,7 @@
                             <h2 className="text-xl font-bold text-slate-800 dark:text-white">HUD 抬頭顯示器</h2>
                         </div>
                         
-                        {/* 修正：提高 z-index 到 50，避免被下方的 toggle-checkbox (z-10) 穿透 */}
                         <div className="sticky top-0 z-50 bg-gray-50 dark:bg-slate-950 px-4 pb-4 shadow-sm transition-colors duration-300">
-                            {/* 修正：將 gpsSpeed 傳入，使預覽畫面連動真實數據 */}
                             <HUDPreview options={hudOptions} alertInfo={nearestCamera} currentSpeed={gpsSpeed} />
                             <p className="text-xs text-slate-500 text-center mt-2">預覽模式：實際顯示將投射於安全帽鏡片</p>
                         </div>
@@ -855,7 +1061,7 @@
                 );
             };
 
-            // 設定頁面
+            // 5. 設定頁
             const renderSettings = () => (
                  <div className="h-full w-full p-4 space-y-6 animate-fadeIn pb-32 overflow-y-auto no-scrollbar">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-white">系統設定</h2>
@@ -876,6 +1082,14 @@
                                 <Icon name="arrow-right-circle" size={16} /> 模擬右後方來車
                             </button>
                         </div>
+                    </div>
+
+                    {/* 新增的資料匯出功能區塊 */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+                        <h3 className="text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">資料管理</h3>
+                        <button onClick={exportToExcel} className="w-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 py-3 rounded-xl font-bold border border-green-200 dark:border-green-500/50 hover:bg-green-200 dark:hover:bg-green-800/50 transition-all flex items-center justify-center gap-2">
+                            <Icon name="file-spreadsheet" size={18} /> 匯出數據 (Excel)
+                        </button>
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
@@ -901,17 +1115,17 @@
                 </div>
             );
 
-            // 主渲染結構
+            // --- [主渲染回傳] ---
             return (
                 <div className={`h-full w-full ${isNightMode ? 'dark' : ''}`}>
-                    {/* 撞擊偵測全螢幕覆蓋層 */}
+                    {/* 全螢幕覆蓋層 (只有在 crashCountdown 不為 null 時才渲染) */}
                     {crashCountdown !== null && <CrashAlertOverlay countdown={crashCountdown} onCancel={cancelCrashAlert} onConfirm={handleTriggerSOS} />}
                     
                     <div className="flex flex-col justify-center items-center h-full w-full bg-white dark:bg-slate-950 font-sans transition-colors duration-500">
-                        {/* 修正後的容器：移除邊框，適應全螢幕手機體驗 */}
+                        {/* 主容器：移除所有邊框，完全適配手機螢幕 */}
                         <div className="w-full h-full sm:max-w-md sm:h-[90vh] sm:max-h-[880px] bg-white dark:bg-slate-950 sm:rounded-[3rem] sm:border-8 sm:border-slate-300 dark:sm:border-slate-800 overflow-hidden relative shadow-2xl flex flex-col sm:ring-1 sm:ring-black/5 dark:sm:ring-white/10 transition-colors duration-300">
                             
-                            {/* 彈窗 */}
+                            {/* 彈出式視窗 */}
                             {showWifiModal && <WifiModal onClose={() => setShowWifiModal(false)} onConnect={handleWifiConnect} currentSsid={currentSsid} />}
                             {showNotifModal && <NotificationModal onClose={() => setShowNotifModal(false)} />}
                             
@@ -926,7 +1140,7 @@
                                 </div>
                             </div>
 
-                            {/* 主要內容區域 */}
+                            {/* 主要內容顯示區：根據 activeTab 切換顯示不同元件 */}
                             <div className={`flex-1 relative z-10 w-full flex flex-col bg-gray-50 dark:bg-slate-950 transition-colors duration-300 overflow-hidden`}>
                                 {activeTab === 'home' && renderHome()}
                                 {activeTab === 'events' && renderEvents()}
@@ -940,6 +1154,7 @@
                                 <div className="flex justify-around items-end px-2">
                                     <NavButton iconName="monitor" label="HUD" isActive={activeTab === 'hud'} onClick={() => setActiveTab('hud')} />
                                     <NavButton iconName="video" label="事件" isActive={activeTab === 'events'} onClick={() => setActiveTab('events')} />
+                                    {/* 中央主要功能鍵：監控 */}
                                     <button onClick={() => setActiveTab('home')} className="flex flex-col items-center justify-center gap-1 -mt-6">
                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center border-4 shadow-xl transition-all duration-300 ${activeTab === 'home' ? 'bg-cyan-600 dark:bg-cyan-500 border-white dark:border-slate-800 text-white transform scale-110' : 'bg-slate-200 dark:bg-slate-700 border-white dark:border-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                             <Icon name="shield" size={28} strokeWidth={2.5} />
@@ -951,7 +1166,59 @@
                                 </div>
                             </div>
                             
-                            {/* iOS Home Indicator (僅在非全螢幕模式下顯示，避免重複) */}
+                            {/* --- [AI 對話按鈕 (右下角)] --- */}
+                            <div className="absolute bottom-24 right-4 z-[60]">
+                                <button 
+                                    onClick={() => setIsChatOpen(!isChatOpen)}
+                                    className="w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg flex items-center justify-center transition-transform active:scale-95 border-2 border-indigo-400"
+                                >
+                                    <Icon name={isChatOpen ? "x" : "message-circle"} size={28} />
+                                </button>
+                            </div>
+
+                            {/* --- [AI 對話視窗] --- */}
+                            {isChatOpen && (
+                                <div className="absolute bottom-40 right-4 z-[60] w-80 h-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-fadeIn">
+                                    <div className="p-3 bg-indigo-600 text-white font-bold flex justify-between items-center">
+                                        <span className="flex items-center gap-2"><Icon name="bot" size={20} /> V.I.S.O.R. Assistant</span>
+                                        <button onClick={() => setIsChatOpen(false)}><Icon name="x" size={18} /></button>
+                                    </div>
+                                    <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-slate-50 dark:bg-slate-950">
+                                        {chatMessages.map((msg, idx) => (
+                                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[80%] p-2 rounded-lg text-sm ${msg.role === 'user' ? 'bg-indigo-500 text-white rounded-br-none' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-bl-none'}`}>
+                                                    {msg.text}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {isAiThinking && (
+                                            <div className="flex justify-start">
+                                                <div className="bg-slate-200 dark:bg-slate-800 p-2 rounded-lg rounded-bl-none">
+                                                    <span className="animate-pulse">...</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={chatInput}
+                                            onChange={(e) => setChatInput(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleSendAiMessage()}
+                                            placeholder="輸入訊息..."
+                                            className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                        <button 
+                                            onClick={handleSendAiMessage}
+                                            className="p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-500 active:scale-95"
+                                        >
+                                            <Icon name="send" size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* iPhone 底部 Home Indicator (僅在桌面模式的容器內模擬顯示) */}
                             <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1.5 bg-slate-300 dark:bg-slate-600/50 rounded-full z-40 pointer-events-none mb-1 sm:block hidden"></div>
                         </div>
                     </div>
