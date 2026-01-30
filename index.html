@@ -32,8 +32,8 @@
                             '50%': { borderColor: 'rgba(239, 68, 68, 0)', backgroundColor: 'transparent' },
                         },
                         slideUp: {
-                            '0%': { transform: 'translateY(100%)', opacity: 0 },
-                            '100%': { transform: 'translateY(0)', opacity: 1 },
+                            '0%': { transform: 'translate(-50%, 100%)', opacity: 0 },
+                            '100%': { transform: 'translate(-50%, 0)', opacity: 1 },
                         }
                     }
                 }
@@ -41,16 +41,14 @@
         }
     </script>
     
-    <!-- 核心函式庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-is/18.2.0/umd/react-is.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-    <!-- Firebase Compat Libraries (支援本地開啟) -->
+    
+    <!-- Firebase Compat Libraries -->
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
@@ -124,7 +122,7 @@
 
         const toPascalCase = (str) => str.replace(/(^\w|-\w)/g, (text) => text.replace(/-/, '').toUpperCase());
 
-        // --- Firebase 初始化 (容錯模式) ---
+        // --- Firebase 初始化 ---
         let app, auth, db;
         let appId = 'default-app-id';
         let isFirebaseAvailable = false;
@@ -186,7 +184,7 @@
         const vibrate = (pattern) => {
             try {
                 if (navigator.vibrate) {
-                    if (pattern === 'heavy') navigator.vibrate([50, 30, 50, 30, 50, 30]);
+                    if (pattern === 'heavy') navigator.vibrate([300, 100, 300, 100, 300]); // 修正：增強摔車震動 (長震)
                     else if (pattern === 'bsd') navigator.vibrate([100, 50, 100, 50, 100, 50, 100, 50, 100]); 
                     else if (pattern === 'speeding') navigator.vibrate([400]);
                     else navigator.vibrate(pattern);
@@ -244,9 +242,7 @@
             }
         }
 
-        // --- 修正後的 Toast 元件 ---
         const Toast = ({ message, onClose }) => {
-            // 使用 useRef 儲存最新的 onClose 函式，避免依賴項改變導致無限重設
             const onCloseRef = useRef(onClose);
             useEffect(() => {
                 onCloseRef.current = onClose;
@@ -254,17 +250,16 @@
 
             useEffect(() => {
                 if (!message) return;
-                // 設定計時器，3秒後呼叫關閉
                 const timer = setTimeout(() => {
                     if (onCloseRef.current) onCloseRef.current();
                 }, 3000);
                 return () => clearTimeout(timer);
-            }, [message]); // 只有當訊息「內容」改變時，才重置計時器
+            }, [message]);
 
             if (!message) return null;
 
             return (
-                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[80] bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium animate-slide-up flex items-center gap-2 whitespace-nowrap">
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium animate-slide-up flex items-center gap-2 whitespace-nowrap border border-slate-700">
                     <Icon name="info" size={16} className="text-cyan-400" />
                     {message}
                 </div>
@@ -373,7 +368,7 @@
             </button>
         );
 
-        // --- 新增：本地歷史紀錄 Modal ---
+        // --- 本地歷史紀錄 Modal ---
         const LocalHistoryModal = ({ onClose }) => {
             const [history, setHistory] = useState([]);
 
@@ -382,7 +377,6 @@
                 if (saved) {
                     try {
                         const parsed = JSON.parse(saved);
-                        // 排序：新的在前
                         parsed.sort((a, b) => new Date(b.date) - new Date(a.date));
                         setHistory(parsed);
                     } catch(e) { console.error("History parse error", e); }
@@ -395,27 +389,6 @@
                 newHistory.splice(index, 1);
                 setHistory(newHistory);
                 localStorage.setItem('visor_ride_logs', JSON.stringify(newHistory));
-            };
-
-            const exportLogExcel = (log) => {
-                 if (!window.XLSX) { alert("匯出元件尚未載入"); return; }
-                const rideData = [
-                    ["項目", "數值", "單位"],
-                    ["總里程", log.stats.distance.toFixed(2), "km"],
-                    ["騎乘時間", formatTime(log.stats.duration), "HH:MM:SS"],
-                    ["平均速度", log.stats.avgSpeed, "km/h"],
-                    ["最高速度", log.stats.maxSpeed, "km/h"],
-                    ["紀錄時間", new Date(log.date).toLocaleString(), ""]
-                ];
-                
-                const chatData = [ ["時間", "發送者", "訊息內容"], ...(log.chat || []).map(msg => [ msg.timestamp ? new Date(msg.timestamp).toLocaleString() : "-", msg.role === 'user' ? "使用者" : "AI 助理", msg.text ]) ];
-                
-                const wb = XLSX.utils.book_new();
-                const wsRide = XLSX.utils.aoa_to_sheet(rideData);
-                const wsChat = XLSX.utils.aoa_to_sheet(chatData);
-                XLSX.utils.book_append_sheet(wb, wsRide, "騎乘數據");
-                XLSX.utils.book_append_sheet(wb, wsChat, "對話紀錄");
-                XLSX.writeFile(wb, `VISOR_History_${new Date(log.date).toISOString().slice(0,10)}.xlsx`);
             };
 
             return (
@@ -442,9 +415,20 @@
                                         <div className="text-center"><div className="text-[10px] text-slate-400">時間</div><div className="font-bold text-slate-900 dark:text-white">{formatTime(log.stats.duration)}</div></div>
                                         <div className="text-center"><div className="text-[10px] text-slate-400">均速</div><div className="font-bold text-slate-900 dark:text-white">{log.stats.avgSpeed}</div></div>
                                     </div>
-                                    <button onClick={() => exportLogExcel(log)} className="w-full py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs rounded-lg flex items-center justify-center gap-1 hover:bg-slate-200 dark:hover:bg-slate-600">
-                                        <Icon name="download" size={14}/> 匯出此筆 Excel
-                                    </button>
+                                    
+                                    {/* 顯示聊天紀錄概要 */}
+                                    {log.chat && log.chat.length > 1 && (
+                                        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                                            <div className="text-xs text-slate-400 mb-1">對話紀錄 ({log.chat.length} 則)</div>
+                                            <div className="text-xs text-slate-600 dark:text-slate-400 max-h-20 overflow-y-auto">
+                                                {log.chat.map((msg, i) => (
+                                                    <div key={i} className="mb-1">
+                                                        <span className="font-bold">{msg.role === 'user' ? '你' : 'AI'}:</span> {msg.text}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}
@@ -471,7 +455,6 @@
                     return;
                 }
 
-                // 管理員登入檢查 (寫死邏輯)
                 if (username === ADMIN_USERNAME) {
                     if (password === ADMIN_PASSWORD) {
                         onLoginSuccess({ username: ADMIN_USERNAME, role: 'admin' });
@@ -486,9 +469,7 @@
                 }
 
                 try {
-                    // 嘗試使用 Firebase
                     if (isFirebaseAvailable && auth) {
-                        // 確保匿名連線已建立
                         if (!auth.currentUser) {
                              await auth.signInAnonymously().catch(() => {});
                         }
@@ -600,117 +581,174 @@
         };
 
         const AdminDashboard = ({ onClose }) => {
-            const [logs, setLogs] = useState([]);
+            const [users, setUsers] = useState([]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
+            
+            // 新增使用者表單狀態
+            const [newUsername, setNewUsername] = useState("");
+            const [newPassword, setNewPassword] = useState("");
+
+            // 讀取使用者列表
+            const fetchUsers = async () => {
+                setLoading(true);
+                setError(null);
+                
+                // 本地模式備援
+                if (!isFirebaseAvailable) {
+                    const localUsers = JSON.parse(localStorage.getItem('visor_users') || '{}');
+                    const userList = Object.keys(localUsers).map(key => ({ id: key, ...localUsers[key] }));
+                    setUsers(userList);
+                    setLoading(false);
+                    return;
+                }
+
+                try {
+                    const querySnapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('user_registry').get();
+                    const userList = [];
+                    querySnapshot.forEach((doc) => {
+                        userList.push({ id: doc.id, ...doc.data() });
+                    });
+                    setUsers(userList);
+                } catch (error) {
+                    console.error("Error fetching users:", error);
+                    setError("無法讀取使用者列表 (權限或連線錯誤)");
+                } finally {
+                    setLoading(false);
+                }
+            };
 
             useEffect(() => {
-                const fetchLogs = async () => {
-                    // 如果是本地模式或沒有 Firebase，讀取 localStorage 模擬後台
-                    if (!isFirebaseAvailable) {
-                         const localLogs = JSON.parse(localStorage.getItem('visor_ride_logs') || '[]');
-                         // 轉換格式以符合 Admin UI
-                         const formattedLogs = localLogs.map((log, i) => ({
-                             id: `local-${i}`,
-                             userName: "本機使用者",
-                             userEmail: "local@device",
-                             timestamp: { toDate: () => new Date(log.date) },
-                             rideStats: log.stats,
-                             chatLog: log.chat
-                         }));
-                         setLogs(formattedLogs);
-                         setError("目前顯示本地裝置儲存的紀錄 (無雲端連線)");
-                         setLoading(false);
-                         return;
-                    }
-                    try {
-                        const querySnapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('logs').get();
-                        const logData = [];
-                        querySnapshot.forEach((doc) => {
-                            logData.push({ id: doc.id, ...doc.data() });
-                        });
-                        logData.sort((a, b) => {
-                           const timeA = a.timestamp?.seconds || 0;
-                           const timeB = b.timestamp?.seconds || 0;
-                           return timeB - timeA;
-                        });
-                        setLogs(logData);
-                    } catch (error) {
-                        console.error("Error fetching logs:", error);
-                        setError("無法讀取雲端日誌，顯示權限錯誤。");
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-                fetchLogs();
+                fetchUsers();
             }, []);
+
+            // 刪除使用者
+            const deleteUser = async (userId) => {
+                if(!confirm(`確定要刪除使用者 ${userId} 嗎？`)) return;
+
+                if (!isFirebaseAvailable) {
+                    const localUsers = JSON.parse(localStorage.getItem('visor_users') || '{}');
+                    delete localUsers[userId];
+                    localStorage.setItem('visor_users', JSON.stringify(localUsers));
+                    fetchUsers();
+                    return;
+                }
+
+                try {
+                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('user_registry').doc(userId).delete();
+                    alert("刪除成功");
+                    fetchUsers();
+                } catch (e) {
+                    alert("刪除失敗: " + e.message);
+                }
+            };
+            
+            // 新增使用者
+            const addUser = async (e) => {
+                e.preventDefault();
+                if(!newUsername || !newPassword) return;
+
+                if (!isFirebaseAvailable) {
+                    const localUsers = JSON.parse(localStorage.getItem('visor_users') || '{}');
+                    if(localUsers[newUsername]) {
+                        alert("使用者已存在");
+                        return;
+                    }
+                    localUsers[newUsername] = { password: newPassword, createdAt: Date.now() };
+                    localStorage.setItem('visor_users', JSON.stringify(localUsers));
+                    setNewUsername("");
+                    setNewPassword("");
+                    fetchUsers();
+                    return;
+                }
+
+                try {
+                    const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('user_registry').doc(newUsername);
+                    const docSnap = await docRef.get();
+                    if(docSnap.exists) {
+                        alert("使用者已存在");
+                        return;
+                    }
+                    await docRef.set({
+                        password: newPassword,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    alert("新增成功");
+                    setNewUsername("");
+                    setNewPassword("");
+                    fetchUsers();
+                } catch(e) {
+                    alert("新增失敗: " + e.message);
+                }
+            };
 
             return (
                 <div className="absolute inset-0 z-[70] bg-white dark:bg-slate-900 overflow-y-auto animate-fadeIn safe-top safe-bottom">
                     <div className="p-4 bg-slate-100 dark:bg-slate-800 flex justify-between items-center sticky top-0 z-10 shadow-sm">
                         <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            <Icon name="shield-alert" size={24} className="text-red-600" /> 管理員監控中心
+                            <Icon name="shield-alert" size={24} className="text-red-600" /> 管理員後台 (使用者管理)
                         </h2>
                         <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
                             <Icon name="x" size={24} className="text-slate-500" />
                         </button>
                     </div>
                     
-                    <div className="p-4 space-y-4">
-                        {loading ? (
-                            <div className="text-center py-10 text-slate-500">載入數據中...</div>
-                        ) : (
-                            <>
-                                {error && <div className="text-center py-2 text-yellow-500 text-xs bg-yellow-50 dark:bg-yellow-900/20 rounded">{error}</div>}
-                                {logs.length === 0 ? (
-                                    <div className="text-center py-10 text-slate-500">資料庫無紀錄</div>
-                                ) : (
-                                    logs.map(log => (
-                                        <div key={log.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <div className="font-bold text-cyan-600 dark:text-cyan-400 text-lg">{log.userName}</div>
-                                                    <div className="text-xs text-slate-400 font-mono mt-1">ID: {log.id.substring(0, 8)}...</div>
-                                                </div>
-                                                <div className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
-                                                    {log.timestamp?.toDate ? new Date(log.timestamp.toDate()).toLocaleString() : 'Just now'}
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="grid grid-cols-3 gap-2 mb-3 mt-3">
-                                                <div className="bg-slate-50 dark:bg-slate-750 p-2 rounded text-center border border-slate-100 dark:border-slate-700">
-                                                    <div className="text-[10px] text-slate-400">里程 (KM)</div>
-                                                    <div className="font-black text-slate-800 dark:text-slate-200 text-lg">{log.rideStats?.distance?.toFixed(1) || 0}</div>
-                                                </div>
-                                                <div className="bg-slate-50 dark:bg-slate-750 p-2 rounded text-center border border-slate-100 dark:border-slate-700">
-                                                    <div className="text-[10px] text-slate-400">時間</div>
-                                                    <div className="font-bold text-slate-800 dark:text-slate-200">{log.rideStats?.duration ? formatTime(log.rideStats.duration) : '00:00:00'}</div>
-                                                </div>
-                                                <div className="bg-slate-50 dark:bg-slate-750 p-2 rounded text-center border border-slate-100 dark:border-slate-700">
-                                                    <div className="text-[10px] text-slate-400">最高速</div>
-                                                    <div className="font-bold text-slate-800 dark:text-slate-200">{log.rideStats?.maxSpeed || 0}</div>
-                                                </div>
-                                            </div>
+                    <div className="p-4 space-y-6">
+                        {/* 新增使用者區塊 */}
+                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2"><Icon name="user-plus" size={18}/> 新增使用者</h3>
+                            <form onSubmit={addUser} className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    placeholder="帳號" 
+                                    value={newUsername}
+                                    onChange={e => setNewUsername(e.target.value)}
+                                    className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none dark:text-white"
+                                />
+                                <input 
+                                    type="text" 
+                                    placeholder="密碼" 
+                                    value={newPassword}
+                                    onChange={e => setNewPassword(e.target.value)}
+                                    className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none dark:text-white"
+                                />
+                                <button type="submit" className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-bold">新增</button>
+                            </form>
+                        </div>
 
-                                            {log.chatLog && log.chatLog.length > 1 && (
-                                                <div className="mt-3 border-t border-slate-100 dark:border-slate-700 pt-3">
-                                                    <div className="text-xs font-bold text-slate-500 mb-1 flex items-center gap-1"><Icon name="message-square" size={12}/> 對話摘要</div>
-                                                    <div className="text-xs text-slate-600 dark:text-slate-400 italic truncate bg-slate-50 dark:bg-slate-900/50 p-2 rounded">
-                                                        "{log.chatLog[log.chatLog.length-1].text}"
-                                                    </div>
-                                                </div>
-                                            )}
+                        {/* 使用者列表 */}
+                        <div className="space-y-2">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-300">已註冊使用者 ({users.length})</h3>
+                            {loading ? (
+                                <div className="text-center py-10 text-slate-500">載入中...</div>
+                            ) : error ? (
+                                <div className="text-center py-10 text-red-500">{error}</div>
+                            ) : users.length === 0 ? (
+                                <div className="text-center py-10 text-slate-500">目前沒有使用者</div>
+                            ) : (
+                                users.map(u => (
+                                    <div key={u.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500">
+                                                <Icon name="user" size={16} />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{u.id}</div>
+                                                <div className="text-[10px] text-slate-400">密碼: {u.password}</div>
+                                            </div>
                                         </div>
-                                    ))
-                                )}
-                            </>
-                        )}
+                                        <button onClick={() => deleteUser(u.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                            <Icon name="trash-2" size={18} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             );
         };
 
-        // --- 補回：CrashAlertOverlay 元件 ---
         const CrashAlertOverlay = ({ countdown, onCancel, onConfirm }) => {
             return (
                 <div className="absolute inset-0 z-[100] animate-crash-alert flex flex-col items-center justify-center p-6 text-white safe-top safe-bottom">
@@ -919,7 +957,7 @@
                 else { const next = !bsdRight; setBsdRight(next); if (next) vibrate('bsd'); }
             };
 
-            const simulateCrash = () => { setCrashCountdown(10); vibrate('heavy'); };
+            const simulateCrash = () => { setCrashCountdown(10); /* effect handles vibe */ };
             const simulateSpeeding = () => { setGpsSpeed(120); setTimeout(() => setGpsSpeed(0), 3000); };
             const simulateBSD = (side) => {
                 playWarningSound();
@@ -927,7 +965,7 @@
                 else { setBsdRight(true); vibrate('bsd'); setTimeout(() => setBsdRight(false), 3000); }
                 setActiveTab('home');
             };
-            const handleTriggerSOS = () => { setCrashCountdown(null); vibrate([200, 100, 500]); navigator.vibrate(0); };
+            const handleTriggerSOS = () => { setCrashCountdown(null); vibrate([200, 100, 200, 100]); navigator.vibrate(0); };
             
             useEffect(() => {
                 let timer;
@@ -967,18 +1005,6 @@
                 } finally { setIsAiThinking(false); }
             };
 
-            const exportToExcel = () => {
-                if (!window.XLSX) { alert("匯出元件尚未載入，請稍後再試。"); return; }
-                const rideData = [ ["項目", "數值", "單位"], ["總里程", rideStats.distance.toFixed(2), "km"], ["騎乘時間", formatTime(rideStats.duration), "HH:MM:SS"], ["平均速度", rideStats.avgSpeed, "km/h"], ["最高速度", rideStats.maxSpeed, "km/h"], ["紀錄時間", new Date().toLocaleString(), ""] ];
-                const chatData = [ ["時間", "發送者", "訊息內容"], ...chatMessages.map(msg => [ msg.timestamp ? new Date(msg.timestamp).toLocaleString() : "-", msg.role === 'user' ? "使用者" : "AI 助理", msg.text ]) ];
-                const wb = XLSX.utils.book_new();
-                const wsRide = XLSX.utils.aoa_to_sheet(rideData);
-                const wsChat = XLSX.utils.aoa_to_sheet(chatData);
-                XLSX.utils.book_append_sheet(wb, wsRide, "騎乘數據");
-                XLSX.utils.book_append_sheet(wb, wsChat, "對話紀錄");
-                XLSX.writeFile(wb, `VISOR_Data_${new Date().toISOString().slice(0,10)}.xlsx`);
-            };
-
             const handleCloudSave = async () => {
                 if (!currentUser) { setShowLoginModal(true); return; } // 自動開啟登入
                 
@@ -1016,9 +1042,11 @@
                         userRole: currentUser.role
                     };
                     
-                    // 使用符合規則的路徑
-                    await db.collection('artifacts').doc(appId).collection('users').doc(auth.currentUser.uid).collection('sessions').add(sessionData);
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('logs').add(sessionData);
+                    // 使用 custom_users/{username}/sessions 路徑
+                    await db.collection('artifacts').doc(appId).collection('custom_users').doc(currentUser.username).collection('sessions').add(sessionData);
+                    
+                    // 公開日誌區 (管理員用)
+                    // await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('logs').add(sessionData);
 
                     showToast("☁️ 已同步上傳至雲端資料庫！");
 
@@ -1177,9 +1205,6 @@
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
                         <h3 className="text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">資料管理</h3>
                         <div className="space-y-3">
-                            <button onClick={exportToExcel} className="w-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 py-3 rounded-xl font-bold border border-green-200 dark:border-green-500/50 hover:bg-green-200 dark:hover:bg-green-800/50 transition-all flex items-center justify-center gap-2">
-                                <Icon name="file-spreadsheet" size={18} /> 匯出數據 (Excel)
-                            </button>
                             <button onClick={handleCloudSave} disabled={uploading} className={`w-full py-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-2 ${uploading ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-wait' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/50 hover:bg-blue-200 dark:hover:bg-blue-800/50'}`}>
                                 <Icon name="cloud-upload" size={18} /> {uploading ? "上傳中..." : "上傳/儲存數據"}
                             </button>
