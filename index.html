@@ -36,6 +36,7 @@
         }
     </script>
     
+    <!-- 核心函式庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
@@ -340,7 +341,7 @@
             </button>
         );
 
-        // 自定義登入系統 Modal
+        // 自定義登入系統 Modal (包含本地備援邏輯)
         const LoginModal = ({ onClose, onLoginSuccess }) => {
             const [mode, setMode] = useState('login'); 
             const [username, setUsername] = useState('');
@@ -359,7 +360,7 @@
                     return;
                 }
 
-                // 管理員登入檢查
+                // 管理員登入檢查 (寫死邏輯)
                 if (username === ADMIN_USERNAME) {
                     if (password === ADMIN_PASSWORD) {
                         onLoginSuccess({ username: ADMIN_USERNAME, role: 'admin' });
@@ -373,43 +374,71 @@
                     }
                 }
 
-                // 一般使用者邏輯 (使用 Firestore 模擬資料庫)
                 try {
-                    // 1. 確保匿名連線已建立
-                    if (!auth.currentUser) await auth.signInAnonymously();
-                    
-                    const userRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('user_registry').doc(username);
-                    const docSnap = await userRef.get();
+                    // 嘗試使用 Firebase
+                    if (isFirebaseAvailable && auth) {
+                        // 確保匿名連線已建立 (以存取資料庫)
+                        if (!auth.currentUser) {
+                             await auth.signInAnonymously().catch(e => {
+                                 // 如果匿名登入也失敗 (例如後端沒開)，則直接拋出錯誤進入 Local 模式
+                                 throw new Error("Anonymous auth failed");
+                             });
+                        }
+                        
+                        // 注意：如果 signInAnonymously 失敗被 catch，下面的 db 操作會繼續拋出錯誤，進入 catch block
+                        const userRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('user_registry').doc(username);
+                        const docSnap = await userRef.get();
 
-                    if (mode === 'signup') {
-                        if (docSnap.exists) {
-                            setError("使用者名稱已被註冊，請更換一個。");
+                        if (mode === 'signup') {
+                            if (docSnap.exists) {
+                                setError("使用者名稱已被註冊。");
+                            } else {
+                                await userRef.set({
+                                    password: password,
+                                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                                onLoginSuccess({ username: username, role: 'user' });
+                                onClose();
+                            }
                         } else {
-                            // 註冊：寫入資料庫
-                            await userRef.set({
-                                password: password,
-                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                            onLoginSuccess({ username: username, role: 'user' });
+                            if (docSnap.exists) {
+                                const userData = docSnap.data();
+                                if (userData.password === password) {
+                                    onLoginSuccess({ username: username, role: 'user' });
+                                    onClose();
+                                } else {
+                                    setError("密碼錯誤");
+                                }
+                            } else {
+                                setError("找不到此使用者名稱");
+                            }
+                        }
+                    } else {
+                        throw new Error("Firebase unavailable"); // 強制進入 catch 執行本地邏輯
+                    }
+                } catch (err) {
+                    console.warn("Cloud login failed, using local storage:", err);
+                    
+                    // --- 本地備援邏輯 (Local Storage) ---
+                    const localUsers = JSON.parse(localStorage.getItem('visor_users') || '{}');
+                    
+                    if (mode === 'signup') {
+                        if (localUsers[username]) {
+                            setError("使用者名稱已被註冊 (本地)。");
+                        } else {
+                            localUsers[username] = { password, createdAt: Date.now() };
+                            localStorage.setItem('visor_users', JSON.stringify(localUsers));
+                            onLoginSuccess({ username: username, role: 'user', isLocal: true });
                             onClose();
                         }
                     } else {
-                        // 登入
-                        if (docSnap.exists) {
-                            const userData = docSnap.data();
-                            if (userData.password === password) {
-                                onLoginSuccess({ username: username, role: 'user' });
-                                onClose();
-                            } else {
-                                setError("密碼錯誤");
-                            }
+                        if (localUsers[username] && localUsers[username].password === password) {
+                            onLoginSuccess({ username: username, role: 'user', isLocal: true });
+                            onClose();
                         } else {
-                            setError("找不到此使用者名稱");
+                            setError("帳號或密碼錯誤 (本地)。");
                         }
                     }
-                } catch (err) {
-                    console.error("DB Error:", err);
-                    setError("系統連線錯誤，請稍後再試。");
                 } finally {
                     setLoading(false);
                 }
@@ -607,6 +636,7 @@
             const [chatInput, setChatInput] = useState("");
             const [chatMessages, setChatMessages] = useState([{ role: 'system', text: '你好！我是 V.I.S.O.R. 智慧助理。有什麼我可以幫你的嗎？', timestamp: new Date().toISOString() }]);
             const [isAiThinking, setIsAiThinking] = useState(false);
+            const [user, setUser] = useState(null);
             const [uploading, setUploading] = useState(false);
             const [showLoginModal, setShowLoginModal] = useState(false);
             const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -825,6 +855,13 @@
 
             const handleCloudSave = async () => {
                 if (!currentUser) { alert("請先登入帳號。"); return; }
+                
+                // 本地使用者 (LocalStorage Fallback)
+                if (currentUser.isLocal) {
+                    alert("⚠️ 您目前使用本地帳號，數據僅會儲存在此瀏覽器，無法上傳雲端。\n\n如需雲端同步，請在支援 Firebase 的環境下使用。");
+                    return;
+                }
+
                 if (!isFirebaseAvailable) { alert("尚未連線至雲端伺服器，請稍後再試。"); return; }
                 
                 setUploading(true);
@@ -837,20 +874,22 @@
                         rideStats: rideStats,
                         chatLog: chatMessages,
                         deviceInfo: { platform: navigator.platform, userAgent: navigator.userAgent },
+                        userId: auth.currentUser.uid, // 使用匿名 UID 確保符合安全規則
+                        userEmail: currentUser.email || 'custom_user', // 存入自定義帳號名稱以供辨識
                         userName: currentUser.username,
                         userRole: currentUser.role
                     };
                     
-                    // 使用 custom_users/{username}/sessions 路徑
-                    await db.collection('artifacts').doc(appId).collection('custom_users').doc(currentUser.username).collection('sessions').add(sessionData);
+                    // 使用符合規則的 private path: users/{auth.uid}/sessions
+                    await db.collection('artifacts').doc(appId).collection('users').doc(auth.currentUser.uid).collection('sessions').add(sessionData);
                     
-                    // 公開日誌區
+                    // 公開日誌區 (管理員用)
                     await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('logs').add(sessionData);
 
                     alert("✅ 數據已成功上傳至雲端資料庫！");
                 } catch (e) {
                     console.error("Upload failed", e);
-                    alert("❌ 上傳失敗，請檢查網路連線。");
+                    alert("❌ 上傳失敗，請檢查網路連線 (" + e.code + ")。");
                 } finally {
                     setUploading(false);
                 }
@@ -961,7 +1000,7 @@
                                         {currentUser.username[0].toUpperCase()}
                                     </div>
                                     <div>
-                                        <div className="text-slate-900 dark:text-white font-bold">{currentUser.username}</div>
+                                        <div className="text-slate-900 dark:text-white font-bold">{currentUser.username} {currentUser.isLocal ? '(本地)' : ''}</div>
                                         <div className="text-slate-500 text-xs">{currentUser.role === 'admin' ? '管理員' : '一般使用者'}</div>
                                     </div>
                                 </div>
